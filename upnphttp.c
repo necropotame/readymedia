@@ -1959,6 +1959,9 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 
 		if (last_file.transcode && last_file.transcoder)
 		{
+			/* the transcoded files does not support ranges */
+			h->reqflags = h->reqflags & (~FLAG_RANGE);
+
 			// DPRINTF(E_WARN, L_GENERAL, "\nFile %s NEEDS TO BE TRANSCODED!\n", last_file.path);
 			DPRINTF(E_DEBUG, L_HTTP, "Executing transcode\n");
 			if ( last_file.transcoder != transcode_image_transcoder )
@@ -2102,14 +2105,11 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	              (h->reqflags & FLAG_RANGE ? '6' : '0'),
 	              last_file.mime);
 	/* FLAG_TIMESEEK support partially based on Hiero's patch */
-	/* TimeSeek is used when:
-	 *   1) it was requested
-	 *   2) the requested file needs to transcoded with the exception of images (see the image transcoding code) */
-	if( h->reqflags & FLAG_RANGE || last_file.transcode )
+	if ( (h->reqflags & FLAG_TIMESEEK) || h->reqflags & FLAG_RANGE )
 	{
 		if ( (h->reqflags & FLAG_TIMESEEK) || last_file.transcode )
 		{
-			if( !h->req_RangeEnd || h->req_RangeEnd == last_file.duration || last_file.transcode)
+			if( !h->req_RangeEnd || h->req_RangeEnd == last_file.duration )
 			{
 				h->req_RangeEnd = last_file.duration-1;
 			}
@@ -2129,7 +2129,7 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			              h->req_RangeEnd/1000,     h->req_RangeEnd%1000,
 			              last_file.duration/1000,  last_file.duration%1000);
 		}
-		else
+		if( h->reqflags & FLAG_RANGE )
 		{
 			if( !h->req_RangeEnd || h->req_RangeEnd == size )
 			{
@@ -2159,10 +2159,15 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			goto error;
 		}
 	}
+	else if ( last_file.transcode )
+	{
+		h->req_RangeStart = 0;
+		h->req_RangeEnd = last_file.duration-1;
+	}
 	else
 	{
-		// NOTE: I'm not sure this is correct, so let's leave it commented out for a while
-		//h->req_RangeStart = 0;
+		/* NOTE: I'm not sure this is correct, so let's leave it commented out for a while */
+		/*h->req_RangeStart = 0;*/
 		h->req_RangeEnd = size - 1;
 		total = size;
 		strcatf(&str, "Content-Length: %jd\r\n", (intmax_t)total);
