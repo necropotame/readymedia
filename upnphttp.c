@@ -1793,6 +1793,9 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 				else if( h->req_client == ESamsungSeriesA &&
 				         strcmp(last_file.mime+6, "x-msvideo") == 0 )
 					strcpy(last_file.mime+6, "mpeg");
+				/* Samsung TV's are able to play quicktime, but they expect MIME type of mp4 */
+				else if( strcmp(last_file.mime+6, "quicktime") == 0 )
+					strcpy(last_file.mime+6, "mp4");
 			}
 			/* ... and Sony BDP-S370 won't play MKV unless we pretend it's a DiVX file */
 			else if( h->req_client == ESonyBDP )
