@@ -1,36 +1,43 @@
-MiniDLNA project
-(c) 2009 Justin Maggard
-Portions (c) 2006-2007 Thomas Bernard
-webpage: http://sourceforge.net/projects/minidlna/
+ReadyMedia-transcode
+------------------
+readymedia-transcode is a personal development branch of ReadyMedia (formerly known as MiniDLNA)
+created by Lukas Jirkovsky for implementing transcode capabilities
+in MiniDLNA.
 
-This directory contains the MiniDLNA daemon software.
-This software is subject to the conditions detailed in
-the LICENCE file provided with this distribution.
+It contains parts of the transcode patch originally presented
+by the user Hiero at:
+http://sourceforge.net/tracker/index.php?func=detail&aid=3193201&group_id=243163&atid=1121518
 
-Parts of the software including the discovery code are
-licensed under the BSD revised license which is detailed
-in the LICENSE.miniupnpd file provided with the distribution.
-More information on MiniUPnPd can be found at http://miniupnp.free.fr.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+The transcoding work can be found in the "transcode" branch
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+General note about transcoding
+==============================
+Before using transcoding functionality of ReadyMedia-transcode, it needs
+to be configured in the minidlna.conf.
 
-The MiniDLNA daemon is an UPnP-A/V and DLNA service which
-serves multimedia content to compatible clients on the network.
-See http://www.upnp.org/ for more details on UPnP
-and http://www.dlna.org/ for mode details on DLNA.
+In this file you specify which files needs to be transcoded
+by specifying audio/video codecs, containers or extensions (for images)
+and transcoders that are used for transcoding such files.
 
-See the INSTALL file for instructions on compiling, installing,
-and configuring minidlna.
+More detailed description is provided in the minidlna.conf file at
+appropriate places. Example transcoding scripts are provided in
+the transcodescripts directory in the ReadyMedia-transcode sources.
 
-Prerequisites
-==================
+Note on RAW image transcoding:
+==============================
+ReadyMedia-transcode uses ImageMagick to obtain necessary information
+about image files. ImageMagick uses so-called delegates for files
+that ImageMagick cannot open directly.
 
-- libexif
-- libjpeg
-- libid3tag
-- libFLAC
-- libvorbis
-- libsqlite3
-- libavformat (the ffmpeg libraries)
+For processing camera RAW format, it uses ufraw-batch delegate by
+default. However, the ufraw-batch is very slow and it may take a few
+seconds to process _one_ image.
 
+To speed up the processing considerably, it is possible to alter
+the delegate to extract only the embedded preview instead of doing
+full processing of the RAW image. To do that, change the dng:decode
+delegate in the ImageMagick's delegates.xml to following:
 
-Justin Maggard
+<delegate decode="dng:decode" command="&quot;ufraw-batch&quot; --silent --create-id=also --embedded-image &quot;--output=%u.png&quot; &quot;%i&quot;"/>
