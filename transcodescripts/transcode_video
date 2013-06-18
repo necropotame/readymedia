@@ -1,0 +1,8 @@
+#!/bin/sh
+
+SOURCE=$1
+STARTPOSITION=$2
+DURATION=$3
+
+ffmpeg -ss $STARTPOSITION -t $DURATION -i "$SOURCE" -loglevel quiet -threads auto -async 2 -target pal-dvd pipe:1
+

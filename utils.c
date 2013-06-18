@@ -379,7 +379,8 @@ is_video(const char * file)
 #ifdef TIVO_SUPPORT
 		ends_with(file, ".TiVo") ||
 #endif
-		ends_with(file, ".mov") || ends_with(file, ".3gp"));
+		ends_with(file, ".mov") || ends_with(file, ".3gp")) ||
+		ends_with(file, ".webm");
 }
 
 int
@@ -397,7 +398,18 @@ is_audio(const char * file)
 int
 is_image(const char * file)
 {
-	return (ends_with(file, ".jpg") || ends_with(file, ".jpeg"));
+	return (ends_with(file, ".jpg") || ends_with(file, ".jpeg") ||
+		ends_with(file, ".png") || ends_with(file, ".gif") ||
+		ends_with(file, ".tif") || ends_with(file, ".tiff") ||
+		ends_with(file, ".bmp") ||
+		/* RAW file formats */
+		ends_with(file, ".cr2") || ends_with(file, ".crw") || /* Canon */
+		ends_with(file, ".nef") || ends_with(file, ".nrw") || /* Nikon */
+		ends_with(file, ".pef") || ends_with(file, ".ptx") || /* Pentax */
+		ends_with(file, ".arw") || ends_with(file, ".srf") || /* Sony */
+		ends_with(file, ".sr2") || /* Sony */
+		ends_with(file, ".orf") || /* Olympus */
+		ends_with(file, ".dng")); /* Adobe */
 }
 
 int

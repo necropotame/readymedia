@@ -11,7 +11,8 @@ minidlnad_SOURCES = minidlna.c upnphttp.c upnpdescgen.c upnpsoap.c \
 			sql.c utils.c metadata.c scanner.c inotify.c \
 			tivo_utils.c tivo_beacon.c tivo_commands.c \
 			tagutils/textutils.c tagutils/misc.c tagutils/tagutils.c \
-			playlist.c image_utils.c albumart.c log.c
+			playlist.c image_utils.c albumart.c log.c \
+			dlnameta.c transcode.c
 
 #if NEED_VORBIS
 vorbisflag = -lvorbis
@@ -21,12 +22,18 @@ vorbisflag = -lvorbis
 flacoggflag = -logg
 #endif
 
+minidlnad_CFLAGS = \
+	-D_FILE_OFFSET_BITS=64 \
+	@MAGICKWAND_CFLAGS@
+
 minidlnad_LDADD = \
 	@LIBJPEG_LIBS@ \
 	@LIBID3TAG_LIBS@ \
 	@LIBSQLITE3_LIBS@ \
+	@LIBAVCODEC_LIBS@ \
 	@LIBAVFORMAT_LIBS@ \
 	@LIBAVUTIL_LIBS@ \
+	@MAGICKWAND_LIBS@ \
 	@LIBEXIF_LIBS@ \
 	@LIBINTL@ \
 	@LIBICONV@ \

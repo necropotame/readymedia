@@ -169,8 +169,6 @@ freetags(struct song_metadata *psong)
 		MAYBEFREE(psong->contributor_sort[role]);
 	}
 	MAYBEFREE(psong->grouping);
-	MAYBEFREE(psong->mime);
-	MAYBEFREE(psong->dlna_pn);
 	MAYBEFREE(psong->tagversion);
 	MAYBEFREE(psong->musicbrainz_albumid);
 	MAYBEFREE(psong->musicbrainz_trackid);

@@ -4,6 +4,7 @@
  *
  * MiniDLNA media server
  * Copyright (C) 2008-2012  Justin Maggard
+ * Copyright (C) 2012  Lukas Jirkovsky
  *
  * This file is part of MiniDLNA.
  *
@@ -177,6 +178,32 @@ static void
 set_startup_time(void)
 {
 	startup_time = time(NULL);
+}
+
+
+/* parsetranscode_list()
+ * parse transcode options separated by a forward slash ("/") into a list
+ */
+static void
+parsetranscode_list(struct transcode_list_s ** list, char * str)
+{
+	char *string, *word;
+	for( string = str; (word = strtok(string, "/")); string = NULL )
+	{
+		struct transcode_list_s * this_name = calloc(1, sizeof(struct transcode_list_s));
+		this_name->value = strdup(word);
+		if( ! *list )
+		{
+			*list = this_name;
+		}
+		else
+		{
+			struct transcode_list_s * all_names = *list;
+			while( all_names->next )
+				all_names = all_names->next;
+			all_names->next = this_name;
+		}
+	}
 }
 
 static void
@@ -697,6 +724,26 @@ init(int argc, char **argv)
 					DPRINTF(E_FATAL, L_GENERAL, "Bad user '%s'.\n", argv[i]);
 				uid = entry->pw_uid;
 			}
+			break;
+		case TRANSCODE_AUDIO_CODECS:
+			parsetranscode_list(&transcode_audio_codecs, ary_options[i].value);
+			break;
+		case TRANSCODE_AUDIOTRANSCODER:
+			strncpyt(transcode_audio_transcoder, ary_options[i].value, MAX_TRANSCODE_TRANSCODER_LEN);
+			break;
+		case TRANSCODE_VIDEO_CONTAINERS:
+			parsetranscode_list(&transcode_video_containers, ary_options[i].value);
+			break;
+		case TRANSCODE_VIDEO_CODECS:
+			parsetranscode_list(&transcode_video_codecs, ary_options[i].value);
+		case TRANSCODE_VIDEOTRANSCODER:
+			strncpyt(transcode_video_transcoder, ary_options[i].value, MAX_TRANSCODE_TRANSCODER_LEN);
+			break;
+		case TRANSCODE_IMAGE:
+			parsetranscode_list(&transcode_image, ary_options[i].value);
+			break;
+		case TRANSCODE_IMAGETRANSCODER:
+			strncpyt(transcode_image_transcoder, ary_options[i].value, MAX_TRANSCODE_TRANSCODER_LEN);
 			break;
 		default:
 			DPRINTF(E_ERROR, L_GENERAL, "Unknown option in file %s\n",
@@ -1250,6 +1297,13 @@ shutdown:
 	/* kill the scanner */
 	if (scanning && scanner_pid)
 		kill(scanner_pid, 9);
+
+	/* remove files that that could have been left after transcoding */
+	if ( transcode_tempfile )
+	{
+		unlink(transcode_tempfile);
+		transcode_tempfile = NULL;
+	}
 
 	/* close out open sockets */
 	while (upnphttphead.lh_first != NULL)

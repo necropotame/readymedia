@@ -42,9 +42,6 @@ image_free(image_s *pimage);
 int
 image_get_jpeg_date_xmp(const char * path, char ** date);
 
-int
-image_get_jpeg_resolution(const char * path, int * width, int * height);
-
 image_s *
 image_new_from_jpeg(const char * path, int is_file, const char * ptr, int size, int scale, int resize);
 

@@ -264,7 +264,6 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 	off_t file_size;
 	int ms;
 	unsigned char buffer[2];
-	aac_object_type_t profile_id = 0;
 
 	psong->vbr_scale = -1;
 	psong->channels = 2; // A "normal" default in case we can't find this information
@@ -349,7 +348,6 @@ _get_aacfileinfo(char *file, struct song_metadata *psong)
 			fseek(infile, 1, SEEK_CUR); // 1 bytes into section 5 should be the setup data
 			if(fread((void *)&buffer, 2, 1, infile))
 			{
-				profile_id = (buffer[0] >> 3); // first 5 bits of setup data is the Audo Profile ID
 				/* Frequency index: (((buffer[0] & 0x7) << 1) | (buffer[1] >> 7))) */
 				samples = ((buffer[1] >> 3) & 0xF);
 				psong->channels = (samples == 7 ? 8 : samples);
@@ -375,33 +373,6 @@ bad_esds:
 		{
 			psong->bitrate = (file_size * 8) / (psong->song_length / 1000);
 		}
-	}
-
-	//DPRINTF(E_DEBUG, L_METADATA, "Profile ID: %u\n", profile_id);
-	switch( profile_id )
-	{
-		case AAC_LC:
-		case AAC_LC_ER:
-			if( psong->samplerate < 8000 || psong->samplerate > 48000 )
-			{
-				DPRINTF(E_DEBUG, L_METADATA, "Unsupported AAC: sample rate is not 8000 < %d < 48000\n",
-				                              psong->samplerate);
-				break;
-			}
-			/* AAC @ Level 1/2 */
-			if( psong->channels <= 2 && psong->bitrate <= 320000 )
-				xasprintf(&(psong->dlna_pn), "AAC_ISO_320");
-			else if( psong->channels <= 2 && psong->bitrate <= 576000 )
-				xasprintf(&(psong->dlna_pn), "AAC_ISO");
-			else if( psong->channels <= 6 && psong->bitrate <= 1440000 )
-				xasprintf(&(psong->dlna_pn), "AAC_MULT5_ISO");
-			else
-				DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC: %d channels, %d bitrate\n",
-				                             psong->channels, psong->bitrate);
-			break;
-		default:
-			DPRINTF(E_DEBUG, L_METADATA, "Unhandled AAC type %d [%s]\n", profile_id, basename(file));
-			break;
 	}
 
 	fclose(infile);

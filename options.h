@@ -55,7 +55,14 @@ enum upnpconfigoptions {
 	ENABLE_TIVO,			/* enable support for streaming images and music to TiVo */
 	ENABLE_DLNA_STRICT,		/* strictly adhere to DLNA specs */
 	ROOT_CONTAINER,			/* root ObjectID (instead of "0") */
-	USER_ACCOUNT			/* user account to run as */
+	USER_ACCOUNT,			/* user account to run as */
+	TRANSCODE_AUDIO_CODECS,		/* audio codecs that needs to be transcoded */
+	TRANSCODE_AUDIOTRANSCODER,	/* application/script that is used to transcode audio */
+	TRANSCODE_VIDEO_CONTAINERS,	/* video containers that needs to be transcoded */
+	TRANSCODE_VIDEO_CODECS,		/* video codecs that needs to be transcoded */
+	TRANSCODE_VIDEOTRANSCODER,	/* video transcoder */
+	TRANSCODE_IMAGE,			/* image files that needs to be transcoded */
+	TRANSCODE_IMAGETRANSCODER	/* image transcoder */
 };
 
 /* readoptionsfile()

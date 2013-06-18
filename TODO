@@ -6,4 +6,5 @@ Things left to do:
 * Upload support
 
 Wishlist:
-* Transcoding
+* Show thumbnails for all images, thumbnails currently works only when thumbnail is in exif
+* It would be nice to have thumbnails for movies too

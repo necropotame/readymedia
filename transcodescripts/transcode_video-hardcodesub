@@ -1,0 +1,17 @@
+#!/bin/sh
+
+SOURCE=$1
+STARTPOSITION=$2
+DURATION=$3
+
+# the mencoder command for encoding to DVD format is taken from:
+# http://www.mplayerhq.hu/DOCS/HTML/en/menc-feat-vcd-dvd.html
+mencoder -really-quiet -msglevel all=-1 -lavdopts debug=0 \
+  -ss $STARTPOSITION -endpos $DURATION -autosub -sub-fuzziness 1 \
+  -oac lavc -ovc lavc \
+  -of mpeg -mpegopts format=mpeg2:muxrate=8000:vbuf_size=1194:abuf_size=64 -ofps 25 \
+  -vf scale=720:576,harddup -srate 48000 -af lavcresample=48000 \
+  -lavcopts vcodec=mpeg2video:vrc_buf_size=1835:vrc_maxrate=9800:vbitrate=5000:keyint=15:vstrict=0:acodec=ac3:abitrate=192:aspect=16/9 \
+  -mc 0 -noskip \
+  "$SOURCE" -o -
+

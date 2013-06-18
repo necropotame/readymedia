@@ -3,7 +3,9 @@
  * http://sourceforge.net/projects/minidlna/
  *
  * MiniDLNA media server
- * Copyright (C) 2008-2009  Justin Maggard
+ * Copyright (C) 2008-2012  Justin Maggard
+ * Copyright (C) 2011-2012  Hiero
+ * Copyright (C) 2012  Lukas Jirkovsky
  *
  * This file is part of MiniDLNA.
  *
@@ -61,6 +63,9 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <signal.h>
+#include <poll.h>
+#include <sys/wait.h>
 
 #include "config.h"
 #include "upnpglobalvars.h"
@@ -72,15 +77,19 @@
 #include "utils.h"
 #include "getifaddr.h"
 #include "image_utils.h"
+#include "transcode.h"
 #include "log.h"
 #include "sql.h"
 #include <libexif/exif-loader.h>
 #include "tivo_utils.h"
 #include "tivo_commands.h"
 #include "clients.h"
+#include "libav.h"
+#include "dlnameta.h"
 
 #include "sendfile.h"
 
+#define MAX_BUFFER_SIZE_TRANSCODE 1048576 // 1MB
 //#define MAX_BUFFER_SIZE 4194304 // 4MB -- Too much?
 #define MAX_BUFFER_SIZE 2147483647 // 2GB -- Too much?
 #define MIN_BUFFER_SIZE 65536
@@ -331,7 +340,36 @@ ParseHttpHeaders(struct upnphttp * h)
 			}
 			else if(strncasecmp(line, "TimeSeekRange.dlna.org", 22)==0)
 			{
+				/* copied from Hiero's patch */
+				int hr=0, m=0, s=0, ss=0;
 				h->reqflags |= FLAG_TIMESEEK;
+				h->req_RangeStart = 0;
+				h->req_RangeEnd = 0;
+				p = colon + 1;
+				while(isspace(*p))
+					p++;
+				if(strncasecmp(p, "npt=", 4)==0) {
+					char buf[32];
+					float tmpf;
+					h->reqflags |= FLAG_RANGE;
+					strncpy(buf, p+4, index(p+4, '-')-(p+4));
+					buf[index(p+4, '-')-(p+4)]='\0';
+					if (index(buf, ':') == NULL) { /* npt format */
+						tmpf = strtof(buf, NULL);
+						h->req_RangeStart = (off_t)(tmpf*1000);
+						tmpf = strtof(index(p+4, '-')+1, NULL);
+						h->req_RangeEnd =  (off_t)(tmpf*1000);
+					} else {
+						sscanf(p+4, "%d:%d:%d.%d", &hr, &m, &s, &ss);
+						h->req_RangeStart = (hr*3600 + m*60 + s)*1000 + ss;
+						sscanf(index(p+4, '-')+1, "%d:%d:%d.%d", &hr, &m, &s, &ss);
+						h->req_RangeEnd = (hr*3600 + m*60 + s)*1000 + ss;
+						//h->req_RangeEnd = atoll(index(p+6, '-')+1);
+						//h->req_RangeStart = atoll(p+6);
+					}
+					DPRINTF(E_DEBUG, L_HTTP, "TimeSeekRange Start-End: %lld.%lld - %lld\n",
+					       h->req_RangeStart/1000,  h->req_RangeStart%1000, h->req_RangeEnd?h->req_RangeEnd/1000:-1,  h->req_RangeEnd?h->req_RangeEnd%1000:0);
+				}
 			}
 			else if(strncasecmp(line, "PlaySpeed.dlna.org", 18)==0)
 			{
@@ -845,8 +883,7 @@ ProcessHttpQuery_upnphttp(struct upnphttp * h)
 			return;
 		}
 		/* 7.3.33.4 */
-		else if( (h->reqflags & (FLAG_TIMESEEK|FLAG_PLAYSPEED)) &&
-		         !(h->reqflags & FLAG_RANGE) )
+		else if( (h->reqflags & FLAG_PLAYSPEED) && !(h->reqflags & FLAG_RANGE) )
 		{
 			DPRINTF(E_WARN, L_HTTP, "DLNA %s requested, responding ERROR 406\n",
 			                        h->reqflags&FLAG_TIMESEEK ? "TimeSeek" : "PlaySpeed");
@@ -1244,6 +1281,99 @@ send_file(struct upnphttp * h, int sendfd, off_t offset, off_t end_offset)
 		offset+=ret;
 	}
 	free(buf);
+}
+
+/* Mostly copied from Hiero's patch */
+void
+send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_offset, char *filename)
+{
+	off_t send_size=0, total_byte_read=0, total_byte_send=0;
+	ssize_t read_stream_size=0;
+	char *buf;
+	int pid, pid_status, i, timeout;
+	pid_t ret;
+	struct pollfd fds[1];
+
+	DPRINTF(E_INFO, L_HTTP, "start transcode and send data\n");
+
+	pid = exec_transcode(transcoder, filename, offset, end_offset, &fds[0].fd);
+	if (pid<0)
+	{
+		DPRINTF(E_ERROR, L_HTTP, "Cannot execute transcoder\n");
+		return;
+	}
+
+	if ((buf = (char *)malloc(MAX_BUFFER_SIZE_TRANSCODE)) == NULL) {
+		DPRINTF(E_ERROR, L_HTTP, "can not malloc in send_file()\n\n");
+		return;
+	}
+
+	total_byte_read=0; total_byte_send=0;
+
+	fds[0].events = POLLIN|POLLPRI;
+	fds[0].revents = POLLIN|POLLPRI;
+	timeout = 30000; /* timeout = 30sec for the first time */
+
+	DPRINTF(E_INFO, L_HTTP, "Starting poll\n");
+
+	while(1)
+	{
+		ret = poll(fds, (nfds_t)1, timeout);
+		if (ret <= 0) {
+			DPRINTF(E_DEBUG, L_HTTP, "poll error : No data in Pipe\n");
+			break;
+		}
+		timeout = 3*1000; /* timeout = 3sec after second time */
+		read_stream_size = read(fds[0].fd, buf, MAX_BUFFER_SIZE_TRANSCODE); // read from PIPE
+		if (read_stream_size == 0) {
+			DPRINTF(E_INFO, L_HTTP, "reached to EOF in PID:%d\n", (int)getpid());
+			break; //EOF
+		}
+		if (read_stream_size < 0) {
+			DPRINTF(E_INFO, L_HTTP, "Error in PID:%d\n", (int)getpid());
+			break; //ERROR
+		}
+		total_byte_read += read_stream_size;
+		//DPRINTF(E_INFO, L_HTTP, "received %d bytes from FFMPEG in PID:%d\n", (int)read_stream_size, (int)getpid());
+		send_size = write(h->socket, buf, read_stream_size);
+		if ( send_size != -1 ) total_byte_send += send_size;
+		if ( (send_size != -1) && (send_size != read_stream_size) ) {
+			DPRINTF(E_INFO, L_HTTP, "client is full??\n");
+			read_stream_size -= send_size;
+			usleep(100000); /* wait 100mS */
+			send_size = write(h->socket, buf+send_size, read_stream_size);
+			if ( send_size != -1 ) total_byte_send += send_size;
+		}
+		if ( send_size == -1 )
+		{
+			DPRINTF(E_DEBUG, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
+			if( errno != EAGAIN )
+				break;
+		}
+		/*else
+		{
+			DPRINTF(E_DEBUG, L_HTTP, "sent %lld bytes to %d. offset is now %lld.\n", ret, h->socket, offset);
+		}*/
+	}
+
+    close(fds[0].fd);
+	free(buf);
+
+	kill(pid, SIGTERM);
+	for (i=0 ; i<10 ; i++) {
+		usleep(200000); /* 200mS */
+		ret = waitpid(pid, &pid_status, WNOHANG | WUNTRACED | WCONTINUED);
+		if (ret == -1) {
+			DPRINTF(E_INFO, L_HTTP, "kill PID(%d) : %s\n", (int)pid, strerror(errno));
+			break;
+		}
+		if ((WIFEXITED(pid_status) || WIFSIGNALED(pid_status)) && (ret != 0)) {
+			DPRINTF(E_INFO, L_HTTP, "process PID(%d) was killed\n", (int)ret);
+			break;
+		}
+		kill(pid, SIGKILL);
+	}
+	DPRINTF(E_INFO, L_HTTP, "total bytes : read=%lld, send=%lld\n", total_byte_read, total_byte_send);
 }
 
 void
@@ -1731,9 +1861,14 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	int rows, ret;
 	char date[30];
 	time_t curtime = time(NULL);
-	off_t total, offset, size;
+	off_t total, size;
 	int64_t id;
 	int sendfh;
+	int transcode_pid;
+	int transcode_handle;
+	char *mime;
+	char *dlnapn;
+	struct dlna_meta_s dlna_metadata= { 0, 0 };
 	uint32_t dlna_flags = DLNA_FLAG_DLNA_V1_5|DLNA_FLAG_HTTP_STALLING|DLNA_FLAG_TM_B;
 	uint32_t cflags = client_types[h->req_client].flags;
 	static struct { int64_t id;
@@ -1741,6 +1876,9 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	                char path[PATH_MAX];
 	                char mime[32];
 	                char dlna[96];
+	                int duration;
+	                int transcode;
+	                char *transcoder;
 	              } last_file = { 0, 0 };
 #if USE_FORK
 	pid_t newpid = 0;
@@ -1760,7 +1898,15 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	}
 	if( id != last_file.id || h->req_client != last_file.client )
 	{
-		snprintf(buf, sizeof(buf), "SELECT PATH, MIME, DLNA_PN from DETAILS where ID = '%lld'", (long long)id);
+		/* we need to remove transcode temporary file when the file is changed
+		   if this file is not deleted up here, it's deleted during minidlna shutdown */
+		if ( transcode_tempfile )
+		{
+			unlink(transcode_tempfile);
+			transcode_tempfile = NULL;
+		}
+
+		snprintf(buf, sizeof(buf), "SELECT PATH, MIME, DLNA_PN, DURATION from DETAILS where ID = '%lld'", (long long)id);
 		ret = sql_get_table(db, buf, &result, &rows, NULL);
 		if( (ret != SQLITE_OK) )
 		{
@@ -1768,20 +1914,109 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			Send500(h);
 			return;
 		}
-		if( !rows || !result[3] || !result[4] )
+		if( !rows || !result[4] )
 		{
 			DPRINTF(E_WARN, L_HTTP, "%s not found, responding ERROR 404\n", object);
 			sqlite3_free_table(result);
 			Send404(h);
 			return;
 		}
+
 		/* Cache the result */
 		last_file.id = id;
 		last_file.client = h->req_client;
-		strncpy(last_file.path, result[3], sizeof(last_file.path)-1);
-		if( result[4] )
+		strncpy(last_file.path, result[4], sizeof(last_file.path)-1);
+		mime = result[5];
+		dlnapn = result[6];
+		if( result[7] )
 		{
-			strncpy(last_file.mime, result[4], sizeof(last_file.mime)-1);
+			int h, m, s, ss;
+			sscanf(result[7], "%d:%d:%d.%d", &h, &m, &s, &ss);
+			last_file.duration = (3600*h + 60*m + s)*1000 + ss;
+		}
+
+		// non-zero value means the file needs to be transcoded
+		if ( *mime == 'i' )
+		{
+			last_file.transcode = needs_transcode_image(last_file.path);
+			last_file.transcoder = transcode_image_transcoder;
+		}
+		else if ( *mime == 'a' )
+		{
+			last_file.transcode = needs_transcode_audio(last_file.path);
+			last_file.transcoder = transcode_audio_transcoder;
+		}
+		else if ( *mime == 'v' )
+		{
+			last_file.transcode = needs_transcode_video(last_file.path);
+			last_file.transcoder = transcode_video_transcoder;
+		}
+		else
+		{
+			last_file.transcode = 0;
+			last_file.transcoder = NULL;
+		}
+
+		if (last_file.transcode && last_file.transcoder)
+		{
+			// DPRINTF(E_WARN, L_GENERAL, "\nFile %s NEEDS TO BE TRANSCODED!\n", last_file.path);
+			DPRINTF(E_DEBUG, L_HTTP, "Executing transcode\n");
+			if ( last_file.transcoder != transcode_image_transcoder )
+			{
+				transcode_pid = exec_transcode(last_file.transcoder, last_file.path, 0, last_file.duration > 0 ? last_file.duration : 1000, &transcode_handle);
+			}
+			else
+			{
+				char tmp[L_tmpnam];
+				tmpnam(tmp);
+				transcode_pid = exec_transcode_img(last_file.transcoder, last_file.path, tmp);
+				/* wait for the transcode to finish */
+				waitpid(transcode_pid, NULL, 0);
+				strcpy(last_file.path, tmp);
+				transcode_tempfile = last_file.path;
+				transcode_handle = open(last_file.path, O_RDONLY);
+				last_file.transcode = 0;
+			}
+			if (transcode_pid < 0)
+			{
+				DPRINTF(E_ERROR, L_HTTP, "Cannot execute transcoder %s\n", last_file.transcoder);
+				return;
+			}
+
+			DPRINTF(E_DEBUG, L_HTTP, "Obtaining metadata\n");
+			if ( last_file.transcoder == transcode_image_transcoder )
+				dlna_metadata = get_dlna_metadata_image(transcode_handle);
+			else if ( last_file.transcoder == transcode_audio_transcoder )
+				dlna_metadata = get_dlna_metadata_audio(transcode_handle);
+			else if ( last_file.transcoder == transcode_video_transcoder )
+				dlna_metadata = get_dlna_metadata_video(transcode_handle);
+			else
+			{
+				DPRINTF(E_ERROR, L_HTTP, "trascoder %s is not a valid transcoder. This should never happen.\n", last_file.transcoder);
+				return;
+			}
+			
+			close(transcode_handle); /* causes ffmpeg transcoder to exit, TODO: check if this is true for other transcoders, too */
+			if ( dlna_metadata.mime != NULL )
+			{
+				mime = dlna_metadata.mime;
+			}
+			if ( dlna_metadata.dlna_pn != NULL )
+			{
+				dlnapn = dlna_metadata.dlna_pn;
+			}
+			kill(transcode_pid, SIGKILL);
+		}
+
+		if( mime )
+			strncpy(last_file.mime, mime, sizeof(last_file.mime)-1);
+		if( dlnapn )
+			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s;", dlnapn);
+		else
+			last_file.dlna[0] = '\0';
+
+		if( mime )
+		{
 			/* From what I read, Samsung TV's expect a [wrong] MIME type of x-mkv. */
 			if( cflags & FLAG_SAMSUNG )
 			{
@@ -1805,10 +2040,7 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 					strcpy(last_file.mime+6, "divx");
 			}
 		}
-		if( result[5] )
-			snprintf(last_file.dlna, sizeof(last_file.dlna), "DLNA.ORG_PN=%s;", result[5]);
-		else
-			last_file.dlna[0] = '\0';
+		
 		sqlite3_free_table(result);
 	}
 #if USE_FORK
@@ -1852,7 +2084,6 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		}
 	}
 
-	offset = h->req_RangeStart;
 	sendfh = open(last_file.path, O_RDONLY);
 	if( sendfh < 0 ) {
 		DPRINTF(E_ERROR, L_HTTP, "Error opening %s\n", last_file.path);
@@ -1870,12 +2101,56 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	              "Content-Type: %s\r\n",
 	              (h->reqflags & FLAG_RANGE ? '6' : '0'),
 	              last_file.mime);
-	if( h->reqflags & FLAG_RANGE )
+	/* FLAG_TIMESEEK support partially based on Hiero's patch */
+	/* TimeSeek is used when:
+	 *   1) it was requested
+	 *   2) the requested file needs to transcoded with the exception of images (see the image transcoding code) */
+	if( h->reqflags & FLAG_RANGE || last_file.transcode )
 	{
-		if( !h->req_RangeEnd || h->req_RangeEnd == size )
+		if ( (h->reqflags & FLAG_TIMESEEK) || last_file.transcode )
 		{
-			h->req_RangeEnd = size - 1;
+			if( !h->req_RangeEnd || h->req_RangeEnd == last_file.duration || last_file.transcode)
+			{
+				h->req_RangeEnd = last_file.duration-1;
+			}
+
+			if( h->req_RangeEnd >= last_file.duration )
+			{
+				DPRINTF(E_WARN, L_HTTP, "Specified range was outside file boundaries!\n");
+				Send416(h);
+				close(sendfh);
+				goto error;
+			}
+
+			strcatf(&str, "X-AvailableSeekRange : 1 npt=0.0-%jd.%jd\r\n",
+			              (last_file.duration-1)/1000,  (last_file.duration-1)%1000);
+			strcatf(&str, "TimeSeekRange.dlna.org : npt=%jd.%jd-%jd.%jd/%d.%d\r\n",
+			              h->req_RangeStart/1000,   h->req_RangeStart%1000,
+			              h->req_RangeEnd/1000,     h->req_RangeEnd%1000,
+			              last_file.duration/1000,  last_file.duration%1000);
 		}
+		else
+		{
+			if( !h->req_RangeEnd || h->req_RangeEnd == size )
+			{
+				h->req_RangeEnd = size - 1;
+			}
+
+			if( h->req_RangeEnd >= size )
+			{
+				DPRINTF(E_WARN, L_HTTP, "Specified range was outside file boundaries!\n");
+				Send416(h);
+				close(sendfh);
+				goto error;
+			}
+
+			total = h->req_RangeEnd - h->req_RangeStart + 1;
+			strcatf(&str, "Content-Length: %jd\r\n"
+			              "Content-Range: bytes %jd-%jd/%jd\r\n",
+			              (intmax_t)total, (intmax_t)h->req_RangeStart,
+			              (intmax_t)h->req_RangeEnd, (intmax_t)size);
+		}
+
 		if( (h->req_RangeStart > h->req_RangeEnd) || (h->req_RangeStart < 0) )
 		{
 			DPRINTF(E_WARN, L_HTTP, "Specified range was invalid!\n");
@@ -1883,22 +2158,11 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			close(sendfh);
 			goto error;
 		}
-		if( h->req_RangeEnd >= size )
-		{
-			DPRINTF(E_WARN, L_HTTP, "Specified range was outside file boundaries!\n");
-			Send416(h);
-			close(sendfh);
-			goto error;
-		}
-
-		total = h->req_RangeEnd - h->req_RangeStart + 1;
-		strcatf(&str, "Content-Length: %jd\r\n"
-		              "Content-Range: bytes %jd-%jd/%jd\r\n",
-		              (intmax_t)total, (intmax_t)h->req_RangeStart,
-		              (intmax_t)h->req_RangeEnd, (intmax_t)size);
 	}
 	else
 	{
+		// NOTE: I'm not sure this is correct, so let's leave it commented out for a while
+		//h->req_RangeStart = 0;
 		h->req_RangeEnd = size - 1;
 		total = size;
 		strcatf(&str, "Content-Length: %jd\r\n", (intmax_t)total);
@@ -1909,19 +2173,17 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		strcatf(&str, "transferMode.dlna.org: Background\r\n");
 	else
 #endif
-	if( strncmp(last_file.mime, "image", 5) == 0 )
-		strcatf(&str, "transferMode.dlna.org: Interactive\r\n");
-	else
-		strcatf(&str, "transferMode.dlna.org: Streaming\r\n");
 
 	switch( *last_file.mime )
 	{
 		case 'i':
+			strcatf(&str, "transferMode.dlna.org: Interactive\r\n");
 			dlna_flags |= DLNA_FLAG_TM_I;
 			break;
 		case 'a':
 		case 'v':
 		default:
+			strcatf(&str, "transferMode.dlna.org: Streaming\r\n");
 			dlna_flags |= DLNA_FLAG_TM_S;
 			break;
 	}
@@ -1934,22 +2196,36 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	}
 
 	strftime(date, 30,"%a, %d %b %Y %H:%M:%S GMT" , gmtime(&curtime));
-	strcatf(&str, "Accept-Ranges: bytes\r\n"
+	strcatf(&str, "Accept-Ranges: %s\r\n"
 	              "Connection: close\r\n"
 	              "Date: %s\r\n"
 	              "EXT:\r\n"
 	              "realTimeInfo.dlna.org: DLNA.ORG_TLAG=*\r\n"
 	              "contentFeatures.dlna.org: %sDLNA.ORG_OP=%02X;DLNA.ORG_CI=%X;DLNA.ORG_FLAGS=%08X%024X\r\n"
 	              "Server: " MINIDLNA_SERVER_STRING "\r\n\r\n",
-	              date, last_file.dlna, 1, 0, dlna_flags, 0);
+	              last_file.transcode ? "none" : "bytes",
+	              date, last_file.dlna,
+	              last_file.transcode ? 0x10 : 0x01, /* 01 = only byte seek, 10 = time based, 11 = both, 00 = none */
+	              last_file.transcode ? 0x1 : 0x0, /* 1 = transcoded, 0 = native */
+	              dlna_flags, 0);
 
-	//DEBUG DPRINTF(E_DEBUG, L_HTTP, "RESPONSE: %s\n", str.data);
+	DPRINTF(E_DEBUG, L_HTTP, "!!!RESPONSE:\n%s\n", str.data);
+	DPRINTF(E_WARN, L_HTTP, "Prepared to send data, transcode: %d!\n", last_file.transcode);
 	if( send_data(h, str.data, str.off, MSG_MORE) == 0 )
 	{
- 		if( h->req_command != EHead )
-			send_file(h, sendfh, offset, h->req_RangeEnd);
+ 		if( h->req_command != EHead ) {
+			if (last_file.transcode)
+			{
+				send_file_transcode(last_file.transcoder, h, h->req_RangeStart, h->req_RangeEnd, last_file.path);
+			}
+			else
+			{
+				send_file(h, sendfh, h->req_RangeStart, h->req_RangeEnd);
+			}
+		}
 	}
 	close(sendfh);
+	free_dlna_metadata(&dlna_metadata);
 
 	CloseSocket_upnphttp(h);
 error:

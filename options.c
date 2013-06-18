@@ -61,7 +61,14 @@ static const struct {
 	{ ENABLE_TIVO, "enable_tivo" },
 	{ ENABLE_DLNA_STRICT, "strict_dlna" },
 	{ ROOT_CONTAINER, "root_container" },
-	{ USER_ACCOUNT, "user" }
+	{ USER_ACCOUNT, "user" },
+	{ TRANSCODE_AUDIO_CODECS, "transcode_audio_codecs"},
+	{ TRANSCODE_AUDIOTRANSCODER, "transcode_audio_transcoder"},
+	{ TRANSCODE_VIDEO_CONTAINERS, "transcode_video_containers"},
+	{ TRANSCODE_VIDEO_CODECS, "transcode_video_codecs"},
+	{ TRANSCODE_VIDEOTRANSCODER, "transcode_video_transcoder"},
+	{ TRANSCODE_IMAGE, "transcode_image"},
+	{ TRANSCODE_IMAGETRANSCODER, "transcode_image_transcoder"}
 };
 
 int
@@ -184,6 +191,7 @@ freeoptions(void)
 {
 	struct media_dir_s *media_path, *last_path;
 	struct album_art_name_s *art_names, *last_name;
+	struct transcode_list_s *audio_codecs, *video_containers, *video_codecs, *image_ext, *last_entry;
 	
 	media_path = media_dirs;
 	while (media_path)
@@ -201,6 +209,42 @@ freeoptions(void)
 		last_name = art_names;
 		art_names = art_names->next;
 		free(last_name);
+	}
+
+	audio_codecs = transcode_audio_codecs;
+	while (audio_codecs)
+	{
+		free(audio_codecs->value);
+		last_entry = audio_codecs;
+		audio_codecs = audio_codecs->next;
+		free(last_entry);
+	}
+
+	video_containers = transcode_video_containers;
+	while (video_containers)
+	{
+		free(video_containers->value);
+		last_entry = video_containers;
+		video_containers = video_containers->next;
+		free(last_entry);
+	}
+
+	video_codecs = transcode_video_codecs;
+	while (video_codecs)
+	{
+		free(video_codecs->value);
+		last_entry = video_codecs;
+		video_codecs = video_codecs->next;
+		free(last_entry);
+	}
+
+	image_ext = transcode_image;
+	while (image_ext)
+	{
+		free(image_ext->value);
+		last_entry = image_ext;
+		image_ext = image_ext->next;
+		free(last_entry);
 	}
 
 	if(ary_options)

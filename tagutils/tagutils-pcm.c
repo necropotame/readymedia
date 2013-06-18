@@ -42,8 +42,5 @@ _get_pcmfileinfo(char *filename, struct song_metadata *psong)
 	psong->song_length = (sec * 1000) + ms;
 	psong->lossless = 1;
 
-	xasprintf(&(psong->mime), "audio/L16;rate=%d;channels=%d", psong->samplerate, psong->channels);
-	xasprintf(&(psong->dlna_pn), "LPCM");
-
 	return 0;
 }
