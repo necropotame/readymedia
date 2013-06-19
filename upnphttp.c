@@ -1959,9 +1959,6 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 
 		if (last_file.transcode && last_file.transcoder)
 		{
-			/* the transcoded files does not support ranges */
-			h->reqflags = h->reqflags & (~FLAG_RANGE);
-
 			// DPRINTF(E_WARN, L_GENERAL, "\nFile %s NEEDS TO BE TRANSCODED!\n", last_file.path);
 			DPRINTF(E_DEBUG, L_HTTP, "Executing transcode\n");
 			if ( last_file.transcoder != transcode_image_transcoder )
@@ -2105,9 +2102,10 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	              (h->reqflags & FLAG_RANGE ? '6' : '0'),
 	              last_file.mime);
 	/* FLAG_TIMESEEK support partially based on Hiero's patch */
-	if ( (h->reqflags & FLAG_TIMESEEK) || h->reqflags & FLAG_RANGE )
+	/* the transcoded files does not support ranges */
+	if ( (h->reqflags & FLAG_TIMESEEK) || ((h->reqflags & FLAG_RANGE) && !last_file.transcode) )
 	{
-		if ( (h->reqflags & FLAG_TIMESEEK) || last_file.transcode )
+		if ( (h->reqflags & FLAG_TIMESEEK) )
 		{
 			if( !h->req_RangeEnd || h->req_RangeEnd == last_file.duration )
 			{
