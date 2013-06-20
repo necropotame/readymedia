@@ -171,6 +171,7 @@ needs_transcode_audio(const char* path)
 		return 1;
 	}
 
+	av_register_all();
 	ret = lav_open(&ctx, path);
 	if( ret != 0 )
 	{
@@ -223,6 +224,7 @@ needs_transcode_video(const char* path)
 
 	DPRINTF(E_WARN, L_METADATA, "Opening %s\n", path);
 
+	av_register_all();
 	ret = lav_open(&ctx, path);
 	if( ret != 0 )
 	{
