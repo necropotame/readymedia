@@ -1938,17 +1938,17 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		// non-zero value means the file needs to be transcoded
 		if ( *mime == 'i' )
 		{
-			last_file.transcode = needs_transcode_image(last_file.path);
+			last_file.transcode = needs_transcode_image(last_file.path, client_types[last_file.client].type);
 			last_file.transcoder = transcode_image_transcoder;
 		}
 		else if ( *mime == 'a' )
 		{
-			last_file.transcode = needs_transcode_audio(last_file.path);
+			last_file.transcode = needs_transcode_audio(last_file.path, client_types[last_file.client].type);
 			last_file.transcoder = transcode_audio_transcoder;
 		}
 		else if ( *mime == 'v' )
 		{
-			last_file.transcode = needs_transcode_video(last_file.path);
+			last_file.transcode = needs_transcode_video(last_file.path, client_types[last_file.client].type);
 			last_file.transcoder = transcode_video_transcoder;
 		}
 		else

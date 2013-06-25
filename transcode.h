@@ -19,6 +19,7 @@
 #ifndef __TRANSCODE_H__
 #define __TRANSCODE_H__
 
+enum client_types;
 struct AVFormatContext;
 
 pid_t
@@ -28,12 +29,12 @@ pid_t
 exec_transcode_img(char *transcoder, char *source_path, char *dest_path);
 
 int
-needs_transcode_image(const char* path);
+needs_transcode_image(const char* path, enum client_types client);
 
 int
-needs_transcode_audio(const char* path);
+needs_transcode_audio(const char* path, enum client_types client);
 
 int
-needs_transcode_video(const char* path);
+needs_transcode_video(const char* path, enum client_types client);
 
 #endif /* __TRANSCODE_H__ */

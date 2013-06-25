@@ -192,6 +192,7 @@ freeoptions(void)
 	struct media_dir_s *media_path, *last_path;
 	struct album_art_name_s *art_names, *last_name;
 	struct transcode_list_s *audio_codecs, *video_containers, *video_codecs, *image_ext, *last_entry;
+	struct transcode_list_format_s *tmp, *last_tmp;
 	
 	media_path = media_dirs;
 	while (media_path)
@@ -214,7 +215,14 @@ freeoptions(void)
 	audio_codecs = transcode_audio_codecs;
 	while (audio_codecs)
 	{
-		free(audio_codecs->value);
+		tmp = audio_codecs->formats;
+		while ( tmp )
+		{
+			free(tmp->value);
+			last_tmp = tmp;
+			tmp = tmp->next;
+			free(last_tmp);
+		}
 		last_entry = audio_codecs;
 		audio_codecs = audio_codecs->next;
 		free(last_entry);
@@ -223,7 +231,14 @@ freeoptions(void)
 	video_containers = transcode_video_containers;
 	while (video_containers)
 	{
-		free(video_containers->value);
+		tmp = video_containers->formats;
+		while ( tmp )
+		{
+			free(tmp->value);
+			last_tmp = tmp;
+			tmp = tmp->next;
+			free(last_tmp);
+		}
 		last_entry = video_containers;
 		video_containers = video_containers->next;
 		free(last_entry);
@@ -232,7 +247,14 @@ freeoptions(void)
 	video_codecs = transcode_video_codecs;
 	while (video_codecs)
 	{
-		free(video_codecs->value);
+		tmp = video_codecs->formats;
+		while ( tmp )
+		{
+			free(tmp->value);
+			last_tmp = tmp;
+			tmp = tmp->next;
+			free(last_tmp);
+		}
 		last_entry = video_codecs;
 		video_codecs = video_codecs->next;
 		free(last_entry);
@@ -241,7 +263,14 @@ freeoptions(void)
 	image_ext = transcode_image;
 	while (image_ext)
 	{
-		free(image_ext->value);
+		tmp = image_ext->formats;
+		while ( tmp )
+		{
+			free(tmp->value);
+			last_tmp = tmp;
+			tmp = tmp->next;
+			free(last_tmp);
+		}
 		last_entry = image_ext;
 		image_ext = image_ext->next;
 		free(last_entry);

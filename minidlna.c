@@ -94,6 +94,7 @@
 #include "log.h"
 #include "tivo_beacon.h"
 #include "tivo_utils.h"
+#include "clients.h"
 
 #if SQLITE_VERSION_NUMBER < 3005001
 # warning "Your SQLite3 library appears to be too old!  Please use 3.5.1 or newer."
@@ -187,18 +188,70 @@ set_startup_time(void)
 static void
 parsetranscode_list(struct transcode_list_s ** list, char * str)
 {
-	char *string, *word;
-	for( string = str; (word = strtok(string, "/")); string = NULL )
+	char *colon, *formats, *word;
+	struct client_type_s *client;
+	struct transcode_list_s *this_client;
+	struct transcode_list_format_s *format_list;
+
+	/* try to find the corresponding client */
+	client = client_types;
+	/* to do that, we need to find the colon first */
+	colon = strchr(str, ':');
+	if( colon )
 	{
-		struct transcode_list_s * this_name = calloc(1, sizeof(struct transcode_list_s));
-		this_name->value = strdup(word);
-		if( ! *list )
+		formats = colon + 1;
+
+		/* null terminate the part before the formats, so the client is separated */
+		*colon = '\0';
+		while( (client->name != NULL) && strcmp(client->name, str) )
+			client++;
+	}
+	else
+	{
+		formats = str;
+	}
+
+	if( ! *list )
+	{
+		/* create a new entry for client in the transcode list */
+		this_client = calloc(1, sizeof(struct transcode_list_s));
+		this_client->type = client->type;
+		*list = this_client;
+	}
+	else
+	{
+		/* try to find the client, otherwise add it to the list */
+		this_client = NULL;
+		struct transcode_list_s * all_clients = *list;
+		while( all_clients->next )
 		{
-			*list = this_name;
+			if ( all_clients->type == client->type )
+			{
+				this_client = all_clients;
+				break;
+			}
+			all_clients = all_clients->next;
+		}
+		if ( ! this_client )
+		{
+			/* the client is not yet listed, append it to the list */
+			this_client = calloc(1, sizeof(struct transcode_list_s));
+			this_client->type = client->type;
+			all_clients->next = this_client;
+		}
+	}
+
+	for ( ; (word = strtok(formats, "/")); formats = NULL )
+	{
+		struct transcode_list_format_s *this_name = calloc(1, sizeof(struct transcode_list_format_s));
+		this_name->value = strdup(word);
+		if( ! this_client->formats )
+		{
+			this_client->formats = this_name;
 		}
 		else
 		{
-			struct transcode_list_s * all_names = *list;
+			struct transcode_list_format_s * all_names = this_client->formats;
 			while( all_names->next )
 				all_names = all_names->next;
 			all_names->next = this_name;
