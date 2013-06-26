@@ -13,6 +13,11 @@ minidlnad_SOURCES = minidlna.c upnphttp.c upnpdescgen.c upnpsoap.c \
 			tagutils/textutils.c tagutils/misc.c tagutils/tagutils.c \
 			playlist.c image_utils.c albumart.c log.c \
 			dlnameta.c transcode.c
+scriptsdir = $(datadir)/minidlna/transcodescripts
+scripts_SCRIPTS = transcodescripts/transcode_audio transcodescripts/transcode_image \
+			transcodescripts/transcode_video \
+			transcodescripts/transcode_video-hardcodesub \
+			transcodescripts/transcode_video-hq
 
 #if NEED_VORBIS
 vorbisflag = -lvorbis
