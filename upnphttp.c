@@ -2127,7 +2127,7 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			              h->req_RangeEnd/1000,     h->req_RangeEnd%1000,
 			              last_file.duration/1000,  last_file.duration%1000);
 		}
-		if( h->reqflags & FLAG_RANGE )
+		if( (h->reqflags & FLAG_RANGE) && !last_file.transcode )
 		{
 			if( !h->req_RangeEnd || h->req_RangeEnd == size )
 			{
