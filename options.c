@@ -189,10 +189,11 @@ readoptionsfile(const char * fname)
 void
 freeoptions(void)
 {
+	int i, j;
 	struct media_dir_s *media_path, *last_path;
 	struct album_art_name_s *art_names, *last_name;
-	struct transcode_list_s *audio_codecs, *video_containers, *video_codecs, *image_ext, *last_entry;
-	struct transcode_list_format_s *tmp, *last_tmp;
+	struct transcode_info_s *last_entry;
+	struct transcode_list_format_s *tmp, *last_tmp, *cleaned_lists[3];
 	
 	media_path = media_dirs;
 	while (media_path)
@@ -212,68 +213,37 @@ freeoptions(void)
 		free(last_name);
 	}
 
-	audio_codecs = transcode_audio_codecs;
-	while (audio_codecs)
+	for ( i = 0; i < ESIZE; i++ )
 	{
-		tmp = audio_codecs->formats;
-		while ( tmp )
+		if ( transcode_info[i] )
 		{
-			free(tmp->value);
-			last_tmp = tmp;
-			tmp = tmp->next;
-			free(last_tmp);
-		}
-		last_entry = audio_codecs;
-		audio_codecs = audio_codecs->next;
-		free(last_entry);
-	}
+			if (transcode_info[i]->audio_transcoder)
+				free(transcode_info[i]->audio_transcoder);
+			if (transcode_info[i]->video_transcoder)
+				free(transcode_info[i]->video_transcoder);
+			if (transcode_info[i]->image_transcoder)
+				free(transcode_info[i]->image_transcoder);
 
-	video_containers = transcode_video_containers;
-	while (video_containers)
-	{
-		tmp = video_containers->formats;
-		while ( tmp )
-		{
-			free(tmp->value);
-			last_tmp = tmp;
-			tmp = tmp->next;
-			free(last_tmp);
-		}
-		last_entry = video_containers;
-		video_containers = video_containers->next;
-		free(last_entry);
-	}
+			cleaned_lists[0] = transcode_info[i]->audio_codecs;
+			cleaned_lists[1] = transcode_info[i]->video_codecs;
+			cleaned_lists[2] = transcode_info[i]->image_formats;
+			for ( j = 0; j < 3; j++ )
+			{
+				if (cleaned_lists[0])
+				{
+					tmp = cleaned_lists[0];
+					while ( tmp )
+					{
+						free(tmp->value);
+						last_tmp = tmp;
+						tmp = tmp->next;
+						free(last_tmp);
+					}
+				}
+			}
 
-	video_codecs = transcode_video_codecs;
-	while (video_codecs)
-	{
-		tmp = video_codecs->formats;
-		while ( tmp )
-		{
-			free(tmp->value);
-			last_tmp = tmp;
-			tmp = tmp->next;
-			free(last_tmp);
+			free(transcode_info[i]);
 		}
-		last_entry = video_codecs;
-		video_codecs = video_codecs->next;
-		free(last_entry);
-	}
-
-	image_ext = transcode_image;
-	while (image_ext)
-	{
-		tmp = image_ext->formats;
-		while ( tmp )
-		{
-			free(tmp->value);
-			last_tmp = tmp;
-			tmp = tmp->next;
-			free(last_tmp);
-		}
-		last_entry = image_ext;
-		image_ext = image_ext->next;
-		free(last_entry);
 	}
 
 	if(ary_options)

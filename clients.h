@@ -50,7 +50,9 @@ enum client_types {
 	ESonyBravia,
 	ESonyInternetTV,
 	EToshibaTV,
-	EStandardDLNA150
+	EStandardDLNA150,
+	/* this must be the last one as it is used to determine the number of client types */
+	ESIZE
 };
 
 struct client_type_s {

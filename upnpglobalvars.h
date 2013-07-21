@@ -230,14 +230,7 @@ extern char db_path[];
 extern char log_path[];
 extern struct media_dir_s *media_dirs;
 extern struct album_art_name_s *album_art_names;
-extern struct transcode_list_s * transcode_audio_codecs;
-extern struct transcode_list_s * transcode_video_containers;
-extern struct transcode_list_s * transcode_video_codecs;
-extern struct transcode_list_s * transcode_image;
-#define MAX_TRANSCODE_TRANSCODER_LEN (200)
-extern char transcode_audio_transcoder[];
-extern char transcode_video_transcoder[];
-extern char transcode_image_transcoder[];
+extern struct transcode_info_s *transcode_info[];
 extern char *transcode_tempfile;
 extern short int scanning;
 extern volatile short int quitting;

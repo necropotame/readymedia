@@ -1939,17 +1939,26 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		if ( *mime == 'i' )
 		{
 			last_file.transcode = needs_transcode_image(last_file.path, client_types[last_file.client].type);
-			last_file.transcoder = transcode_image_transcoder;
+			if (transcode_info[client_types[last_file.client].type] && transcode_info[client_types[last_file.client].type]->image_transcoder)
+				last_file.transcoder = transcode_info[client_types[last_file.client].type]->image_transcoder;
+			else
+				last_file.transcoder = transcode_info[0]->image_transcoder;
 		}
 		else if ( *mime == 'a' )
 		{
 			last_file.transcode = needs_transcode_audio(last_file.path, client_types[last_file.client].type);
-			last_file.transcoder = transcode_audio_transcoder;
+			if (transcode_info[client_types[last_file.client].type] && transcode_info[client_types[last_file.client].type]->audio_transcoder)
+				last_file.transcoder = transcode_info[client_types[last_file.client].type]->audio_transcoder;
+			else
+				last_file.transcoder = transcode_info[0]->audio_transcoder;
 		}
 		else if ( *mime == 'v' )
 		{
 			last_file.transcode = needs_transcode_video(last_file.path, client_types[last_file.client].type);
-			last_file.transcoder = transcode_video_transcoder;
+			if (transcode_info[client_types[last_file.client].type] && transcode_info[client_types[last_file.client].type]->video_transcoder)
+				last_file.transcoder = transcode_info[client_types[last_file.client].type]->video_transcoder;
+			else
+				last_file.transcoder = transcode_info[0]->video_transcoder;
 		}
 		else
 		{
@@ -1961,7 +1970,7 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		{
 			// DPRINTF(E_WARN, L_GENERAL, "\nFile %s NEEDS TO BE TRANSCODED!\n", last_file.path);
 			DPRINTF(E_DEBUG, L_HTTP, "Executing transcode\n");
-			if ( last_file.transcoder != transcode_image_transcoder )
+			if ( *mime != 'i' )
 			{
 				transcode_pid = exec_transcode(last_file.transcoder, last_file.path, 0, last_file.duration > 0 ? last_file.duration : 1000, &transcode_handle);
 			}
@@ -1984,11 +1993,11 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			}
 
 			DPRINTF(E_DEBUG, L_HTTP, "Obtaining metadata\n");
-			if ( last_file.transcoder == transcode_image_transcoder )
+			if ( *mime == 'i' )
 				dlna_metadata = get_dlna_metadata_image(transcode_handle);
-			else if ( last_file.transcoder == transcode_audio_transcoder )
+			else if ( *mime == 'a' )
 				dlna_metadata = get_dlna_metadata_audio(transcode_handle);
-			else if ( last_file.transcoder == transcode_video_transcoder )
+			else if ( *mime == 'v' )
 				dlna_metadata = get_dlna_metadata_video(transcode_handle);
 			else
 			{

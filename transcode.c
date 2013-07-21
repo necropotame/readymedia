@@ -139,22 +139,15 @@ exec_transcode_img(char *transcoder, char *source_path, char *dest_path)
 int
 needs_transcode_image(const char* path, enum client_types client)
 {
-	/* this is a counter how many possible clients were checked, the checking ends when it's == 2 (default and specific client checked) */
-	int checked_clients = 0;
-	struct transcode_list_s *transcode_client_it = NULL;
+	int i;
 	struct transcode_list_format_s *transcode_format_it = NULL;
+	struct transcode_info_s *clients_info[] = {transcode_info[0], transcode_info[client]};
 
-	transcode_client_it = transcode_image;
-	while ( transcode_client_it && checked_clients < 2 )
+	for ( i = 0; i < 2; i++ )
 	{
-		if ( transcode_client_it->type == 0 || transcode_client_it->type == client )
+		if (clients_info[i])
 		{
-			if ( transcode_client_it->type == 0)
-				checked_clients++;
-			if ( transcode_client_it->type == client )
-				checked_clients++;
-
-			transcode_format_it = transcode_client_it->formats;
+			transcode_format_it = clients_info[i]->image_formats;
 			/* test for the reserved value "all" */
 			if ( transcode_format_it && strcmp(transcode_format_it->value, "all") == 0 )
 			{
@@ -169,7 +162,6 @@ needs_transcode_image(const char* path, enum client_types client)
 				transcode_format_it = transcode_format_it->next;
 			}
 		}
-		transcode_client_it = transcode_client_it->next;
 	}
 
 	return 0;
@@ -182,10 +174,9 @@ needs_transcode_audio(const char* path, enum client_types client)
 	AVFormatContext *ctx = NULL;
 	struct AVCodecContext *ac = NULL;
 	int i;
-	int checked_clients = 0;
-	struct transcode_list_s *transcode_client_it = NULL;
 	struct transcode_list_format_s *transcode_format_it = NULL;
 	struct AVCodec *codec = NULL;
+	struct transcode_info_s *clients_info[] = {transcode_info[0], transcode_info[client]};
 
 	/* prepare ffmpeg */
 	av_register_all();
@@ -210,17 +201,11 @@ needs_transcode_audio(const char* path, enum client_types client)
 	{
 		codec = avcodec_find_decoder(ac->codec_id);
 		
-		transcode_client_it = transcode_audio_codecs;
-		while ( transcode_client_it && checked_clients < 2 )
-		{
-			if ( transcode_client_it->type == 0 || transcode_client_it->type == client )
+		for ( i = 0; i < 2; i++ )
+		{	
+			if (clients_info[i])
 			{
-				if ( transcode_client_it->type == 0)
-					checked_clients++;
-				if ( transcode_client_it->type == client )
-					checked_clients++;
-				
-				transcode_format_it = transcode_client_it->formats;
+				transcode_format_it = clients_info[i]->audio_codecs;
 				/* test for the reserved value "all" */
 				if ( transcode_format_it && strcmp(transcode_format_it->value, "all") == 0 )
 				{
@@ -238,7 +223,6 @@ needs_transcode_audio(const char* path, enum client_types client)
 					transcode_format_it = transcode_format_it->next;
 				}
 			}
-			transcode_client_it = transcode_client_it->next;
 		}
 	}
 
@@ -256,11 +240,8 @@ needs_transcode_video(const char* path, enum client_types client)
 	struct AVCodecContext *ac = NULL;
 	struct AVCodecContext *vc = NULL;
 	int i;
-	int checked_clients = 0;
-	struct transcode_list_s *transcode_client_it = NULL;
 	struct transcode_list_format_s *transcode_format_it = NULL;
-
-	DPRINTF(E_WARN, L_METADATA, "Kontroluju video pro klienta: %d\n", client);
+	struct transcode_info_s *clients_info[] = {transcode_info[0], transcode_info[client]};
 
 	/* prepare ffmpeg */
 	av_register_all();
@@ -300,24 +281,18 @@ needs_transcode_video(const char* path, enum client_types client)
 	/* check if the file needs to be transcoded */
 
 	/* check the container */
-	transcode_client_it = transcode_video_containers;
-	while ( transcode_client_it && checked_clients < 2 )
+	for ( i = 0; i < 2; i++ )
 	{
-		if ( transcode_client_it->type == 0 || transcode_client_it->type == client )
+		if (clients_info[i])
 		{
-			if ( transcode_client_it->type == 0)
-				checked_clients++;
-			if ( transcode_client_it->type == client )
-				checked_clients++;
-
-			transcode_format_it = transcode_client_it->formats;
+			transcode_format_it = clients_info[i]->video_containers;
 			/* test for the reserved value "all" */
 			if ( transcode_format_it && strcmp(transcode_format_it->value, "all") == 0 )
 			{
 				lav_close(ctx);
 				return 1;
 			}
-			
+
 			while( transcode_format_it )
 			{
 				if ( strcmp(ctx->iformat->name, transcode_format_it->value) == 0 )
@@ -328,22 +303,14 @@ needs_transcode_video(const char* path, enum client_types client)
 				transcode_format_it = transcode_format_it->next;
 			}
 		}
-		transcode_client_it = transcode_client_it->next;
 	}
 
 	/* check the video codec */
-	checked_clients = 0;
-	transcode_client_it = transcode_video_codecs;
-	while ( transcode_client_it && checked_clients < 2 )
+	for ( i = 0; i < 2; i++ )
 	{
-		if ( transcode_client_it->type == 0 || transcode_client_it->type == client )
+		if (clients_info[i])
 		{
-			if ( transcode_client_it->type == 0)
-				checked_clients++;
-			if ( transcode_client_it->type == client )
-				checked_clients++;
-
-			transcode_format_it = transcode_client_it->formats;
+			transcode_format_it = clients_info[i]->video_codecs;
 			/* test for the reserved value "all" */
 			if ( transcode_format_it && strcmp(transcode_format_it->value, "all") == 0 )
 			{
@@ -362,22 +329,14 @@ needs_transcode_video(const char* path, enum client_types client)
 				transcode_format_it = transcode_format_it->next;
 			}
 		}
-		transcode_client_it = transcode_client_it->next;
 	}
 	
 	/* check the audio codec */
-	checked_clients = 0;
-	transcode_client_it = transcode_audio_codecs;
-	while ( ac && transcode_client_it && checked_clients < 2 )
+	for ( i = 0; i < 2; i++ )
 	{
-		if ( transcode_client_it->type == 0 || transcode_client_it->type == client )
+		if (clients_info[i])
 		{
-			if ( transcode_client_it->type == 0)
-				checked_clients++;
-			if ( transcode_client_it->type == client )
-				checked_clients++;
-			
-			transcode_format_it = transcode_client_it->formats;
+			transcode_format_it = clients_info[i]->audio_codecs;
 			/* test for the reserved value "all" */
 			if ( transcode_format_it && strcmp(transcode_format_it->value, "all") == 0 )
 			{
@@ -396,7 +355,6 @@ needs_transcode_video(const char* path, enum client_types client)
 				transcode_format_it = transcode_format_it->next;
 			}
 		}
-		transcode_client_it = transcode_client_it->next;
 	}
 
 	lav_close(ctx);

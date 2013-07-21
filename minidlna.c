@@ -181,17 +181,11 @@ set_startup_time(void)
 	startup_time = time(NULL);
 }
 
-
-/* parsetranscode_list()
- * parse transcode options separated by a forward slash ("/") into a list
- */
-static void
-parsetranscode_list(struct transcode_list_s ** list, char * str)
+static enum client_types
+transcode_getclient(struct transcode_info_s **transcode_info, char *str, char **ret_str)
 {
-	char *colon, *formats, *word;
+	char *colon, *formats;
 	struct client_type_s *client;
-	struct transcode_list_s *this_client;
-	struct transcode_list_format_s *format_list;
 
 	/* try to find the corresponding client */
 	client = client_types;
@@ -210,48 +204,36 @@ parsetranscode_list(struct transcode_list_s ** list, char * str)
 	{
 		formats = str;
 	}
-
-	if( ! *list )
+	
+	/* move the beginning of str */
+	*ret_str = formats;
+	
+	if( ! transcode_info[client->type] )
 	{
 		/* create a new entry for client in the transcode list */
-		this_client = calloc(1, sizeof(struct transcode_list_s));
-		this_client->type = client->type;
-		*list = this_client;
-	}
-	else
-	{
-		/* try to find the client, otherwise add it to the list */
-		this_client = NULL;
-		struct transcode_list_s * all_clients = *list;
-		while( all_clients->next )
-		{
-			if ( all_clients->type == client->type )
-			{
-				this_client = all_clients;
-				break;
-			}
-			all_clients = all_clients->next;
-		}
-		if ( ! this_client )
-		{
-			/* the client is not yet listed, append it to the list */
-			this_client = calloc(1, sizeof(struct transcode_list_s));
-			this_client->type = client->type;
-			all_clients->next = this_client;
-		}
+		transcode_info[client->type] = calloc(1, sizeof(struct transcode_info_s));
 	}
 
-	for ( ; (word = strtok(formats, "/")); formats = NULL )
+	return client->type;
+}
+
+static void
+transcode_parselist(struct transcode_list_format_s **client_info_list, char * str)
+{
+	char *word;
+	struct client_type_s *client;
+
+	for ( ; (word = strtok(str, "/")); str = NULL )
 	{
 		struct transcode_list_format_s *this_name = calloc(1, sizeof(struct transcode_list_format_s));
 		this_name->value = strdup(word);
-		if( ! this_client->formats )
+		if( ! *client_info_list )
 		{
-			this_client->formats = this_name;
+			*client_info_list = this_name;
 		}
 		else
 		{
-			struct transcode_list_format_s * all_names = this_client->formats;
+			struct transcode_list_format_s * all_names = *client_info_list;
 			while( all_names->next )
 				all_names = all_names->next;
 			all_names->next = this_name;
@@ -559,6 +541,7 @@ init(int argc, char **argv)
 	int ifaces = 0;
 	media_types types;
 	uid_t uid = -1;
+	enum client_types specific_client;
 
 	/* first check if "-f" option is used */
 	for (i=2; i<argc; i++)
@@ -779,24 +762,32 @@ init(int argc, char **argv)
 			}
 			break;
 		case TRANSCODE_AUDIO_CODECS:
-			parsetranscode_list(&transcode_audio_codecs, ary_options[i].value);
+			specific_client = transcode_getclient(transcode_info, ary_options[i].value, &string);
+			transcode_parselist(&(transcode_info[specific_client]->audio_codecs), string);
 			break;
 		case TRANSCODE_AUDIOTRANSCODER:
-			strncpyt(transcode_audio_transcoder, ary_options[i].value, MAX_TRANSCODE_TRANSCODER_LEN);
+			specific_client = transcode_getclient(transcode_info, ary_options[i].value, &string);
+			transcode_info[specific_client]->audio_transcoder = strdup(string);
 			break;
 		case TRANSCODE_VIDEO_CONTAINERS:
-			parsetranscode_list(&transcode_video_containers, ary_options[i].value);
+			specific_client = transcode_getclient(transcode_info, ary_options[i].value, &string);
+			transcode_parselist(&(transcode_info[specific_client]->video_containers), string);
 			break;
 		case TRANSCODE_VIDEO_CODECS:
-			parsetranscode_list(&transcode_video_codecs, ary_options[i].value);
+			specific_client = transcode_getclient(transcode_info, ary_options[i].value, &string);
+			transcode_parselist(&(transcode_info[specific_client]->video_codecs), string);
+			break;
 		case TRANSCODE_VIDEOTRANSCODER:
-			strncpyt(transcode_video_transcoder, ary_options[i].value, MAX_TRANSCODE_TRANSCODER_LEN);
+			specific_client = transcode_getclient(transcode_info, ary_options[i].value, &string);
+			transcode_info[specific_client]->video_transcoder = strdup(string);
 			break;
 		case TRANSCODE_IMAGE:
-			parsetranscode_list(&transcode_image, ary_options[i].value);
+			specific_client = transcode_getclient(transcode_info, ary_options[i].value, &string);
+			transcode_parselist(&(transcode_info[specific_client]->image_formats), string);
 			break;
 		case TRANSCODE_IMAGETRANSCODER:
-			strncpyt(transcode_image_transcoder, ary_options[i].value, MAX_TRANSCODE_TRANSCODER_LEN);
+			specific_client = transcode_getclient(transcode_info, ary_options[i].value, &string);
+			transcode_info[specific_client]->image_transcoder = strdup(string);
 			break;
 		default:
 			DPRINTF(E_ERROR, L_GENERAL, "Unknown option in file %s\n",
