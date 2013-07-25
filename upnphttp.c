@@ -1939,26 +1939,26 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		if ( *mime == 'i' )
 		{
 			last_file.transcode = needs_transcode_image(last_file.path, client_types[last_file.client].type);
-			if (transcode_info[client_types[last_file.client].type] && transcode_info[client_types[last_file.client].type]->image_transcoder)
-				last_file.transcoder = transcode_info[client_types[last_file.client].type]->image_transcoder;
+			if (client_types[last_file.client].transcode_info && client_types[last_file.client].transcode_info->image_transcoder)
+				last_file.transcoder = client_types[last_file.client].transcode_info->image_transcoder;
 			else
-				last_file.transcoder = transcode_info[0]->image_transcoder;
+				last_file.transcoder = client_types[0].transcode_info->image_transcoder;
 		}
 		else if ( *mime == 'a' )
 		{
 			last_file.transcode = needs_transcode_audio(last_file.path, client_types[last_file.client].type);
-			if (transcode_info[client_types[last_file.client].type] && transcode_info[client_types[last_file.client].type]->audio_transcoder)
-				last_file.transcoder = transcode_info[client_types[last_file.client].type]->audio_transcoder;
+			if (client_types[last_file.client].transcode_info && client_types[last_file.client].transcode_info->audio_transcoder)
+				last_file.transcoder = client_types[last_file.client].transcode_info->audio_transcoder;
 			else
-				last_file.transcoder = transcode_info[0]->audio_transcoder;
+				last_file.transcoder = client_types[0].transcode_info->audio_transcoder;
 		}
 		else if ( *mime == 'v' )
 		{
 			last_file.transcode = needs_transcode_video(last_file.path, client_types[last_file.client].type);
-			if (transcode_info[client_types[last_file.client].type] && transcode_info[client_types[last_file.client].type]->video_transcoder)
-				last_file.transcoder = transcode_info[client_types[last_file.client].type]->video_transcoder;
+			if (client_types[last_file.client].transcode_info && client_types[last_file.client].transcode_info->video_transcoder)
+				last_file.transcoder = client_types[last_file.client].transcode_info->video_transcoder;
 			else
-				last_file.transcoder = transcode_info[0]->video_transcoder;
+				last_file.transcoder = client_types[0].transcode_info->video_transcoder;
 		}
 		else
 		{

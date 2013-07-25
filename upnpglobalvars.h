@@ -230,7 +230,6 @@ extern char db_path[];
 extern char log_path[];
 extern struct media_dir_s *media_dirs;
 extern struct album_art_name_s *album_art_names;
-extern struct transcode_info_s *transcode_info[];
 extern char *transcode_tempfile;
 extern short int scanning;
 extern volatile short int quitting;

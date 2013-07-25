@@ -90,7 +90,6 @@ char db_path[PATH_MAX] = {'\0'};
 char log_path[PATH_MAX] = {'\0'};
 struct media_dir_s * media_dirs = NULL;
 struct album_art_name_s * album_art_names = NULL;
-struct transcode_info_s *transcode_info[ESIZE] = {NULL};
 char *transcode_tempfile = NULL;
 short int scanning = 0;
 volatile short int quitting = 0;

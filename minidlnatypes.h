@@ -82,19 +82,4 @@ struct album_art_name_s {
 	struct album_art_name_s *next;
 };
 
-struct transcode_list_format_s {
-	char *value;           /* container, codec or extension depending on a transcode option */
-	struct transcode_list_format_s * next;
-};
-
-struct transcode_info_s {
-	char *audio_transcoder;
-	char *video_transcoder;
-	char *image_transcoder;
-	struct transcode_list_format_s *audio_codecs;
-	struct transcode_list_format_s *video_codecs;
-	struct transcode_list_format_s *video_containers;
-	struct transcode_list_format_s *image_formats;
-};
-
 #endif

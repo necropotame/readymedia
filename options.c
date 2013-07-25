@@ -213,20 +213,20 @@ freeoptions(void)
 		free(last_name);
 	}
 
-	for ( i = 0; i < ESIZE; i++ )
+	for ( i = 0; client_types[i].name; i++ )
 	{
-		if ( transcode_info[i] )
+		if ( client_types[i].transcode_info )
 		{
-			if (transcode_info[i]->audio_transcoder)
-				free(transcode_info[i]->audio_transcoder);
-			if (transcode_info[i]->video_transcoder)
-				free(transcode_info[i]->video_transcoder);
-			if (transcode_info[i]->image_transcoder)
-				free(transcode_info[i]->image_transcoder);
+			if (client_types[i].transcode_info->audio_transcoder)
+				free(client_types[i].transcode_info->audio_transcoder);
+			if (client_types[i].transcode_info->video_transcoder)
+				free(client_types[i].transcode_info->video_transcoder);
+			if (client_types[i].transcode_info->image_transcoder)
+				free(client_types[i].transcode_info->image_transcoder);
 
-			cleaned_lists[0] = transcode_info[i]->audio_codecs;
-			cleaned_lists[1] = transcode_info[i]->video_codecs;
-			cleaned_lists[2] = transcode_info[i]->image_formats;
+			cleaned_lists[0] = client_types[i].transcode_info->audio_codecs;
+			cleaned_lists[1] = client_types[i].transcode_info->video_codecs;
+			cleaned_lists[2] = client_types[i].transcode_info->image_formats;
 			for ( j = 0; j < 3; j++ )
 			{
 				if (cleaned_lists[0])
@@ -242,7 +242,7 @@ freeoptions(void)
 				}
 			}
 
-			free(transcode_info[i]);
+			free(client_types[i].transcode_info);
 		}
 	}
 

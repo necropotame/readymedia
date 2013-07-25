@@ -141,7 +141,7 @@ needs_transcode_image(const char* path, enum client_types client)
 {
 	int i;
 	struct transcode_list_format_s *transcode_format_it = NULL;
-	struct transcode_info_s *clients_info[] = {transcode_info[0], transcode_info[client]};
+	struct transcode_info_s *clients_info[] = {client_types[0].transcode_info, client_types[client].transcode_info};
 
 	for ( i = 0; i < 2; i++ )
 	{
@@ -176,7 +176,7 @@ needs_transcode_audio(const char* path, enum client_types client)
 	int i;
 	struct transcode_list_format_s *transcode_format_it = NULL;
 	struct AVCodec *codec = NULL;
-	struct transcode_info_s *clients_info[] = {transcode_info[0], transcode_info[client]};
+	struct transcode_info_s *clients_info[] = {client_types[0].transcode_info, client_types[client].transcode_info};
 
 	/* prepare ffmpeg */
 	av_register_all();
@@ -241,7 +241,7 @@ needs_transcode_video(const char* path, enum client_types client)
 	struct AVCodecContext *vc = NULL;
 	int i;
 	struct transcode_list_format_s *transcode_format_it = NULL;
-	struct transcode_info_s *clients_info[] = {transcode_info[0], transcode_info[client]};
+	struct transcode_info_s *clients_info[] = {client_types[0].transcode_info, client_types[client].transcode_info};
 
 	/* prepare ffmpeg */
 	av_register_all();
