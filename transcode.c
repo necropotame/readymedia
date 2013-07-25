@@ -104,7 +104,10 @@ exec_transcode(char *transcoder, char *source_path, int offset, int end_offset, 
 
 	retval = waitpid(pid, NULL, WNOHANG);
 	if( retval != pid )
+	{
+		DPRINTF(E_ERROR, L_TRANSCODE, "Can not obtain child status (execute failed?)\n");
 		return -1;
+	}
 
 	return pid;
 }
@@ -140,7 +143,10 @@ exec_transcode_img(char *transcoder, char *source_path, char *dest_path)
 
 	retval = waitpid(pid, &status, 0);
 	if( retval != pid || WIFEXITED(status) == 0 || WEXITSTATUS(status) != 0 )
+	{
+		DPRINTF(E_ERROR, L_TRANSCODE, "Cannot obtain child status (execute failed?)\n");
 		return -1;
+	}
 
 	return pid;
 }
