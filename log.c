@@ -41,6 +41,7 @@ char *facility_name[] = {
 	"metadata",
 	"http",
 	"ssdp",
+	"transcode",
 	"tivo",
 	0
 };

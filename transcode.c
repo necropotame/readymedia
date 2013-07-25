@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <string.h>
 
 #include "config.h"
 
@@ -44,7 +45,7 @@ popenvp(const char* file, char * const argv[], int *pipehandle)
 	/* create a pipe */
 	if(pipe(fildes)<0)
 	{
-		perror("popen2 pipe()");
+		DPRINTF(E_ERROR, L_TRANSCODE, "Cannot create pipe (%s)\n", strerror(errno));
 		return -1;
 	}
 
@@ -52,7 +53,7 @@ popenvp(const char* file, char * const argv[], int *pipehandle)
 	pid=fork();
 	if (pid < 0)
 	{
-		perror("exec_transcode fork()");
+		DPRINTF(E_ERROR, L_TRANSCODE, "Fork failed (%s)\n", strerror(errno));
 		close(fildes[WRITE]);
 		close(fildes[READ]);
 		return pid;
@@ -64,7 +65,7 @@ popenvp(const char* file, char * const argv[], int *pipehandle)
 		dup2(fildes[WRITE], WRITE);
 
 		if (execvp(file, argv) < 0) {
-			perror("exec_transcode execvp()");
+			DPRINTF(E_ERROR, L_TRANSCODE, "Exec failed (%s)\n", strerror(errno));
 			close(fildes[READ]);
 			exit(1);
 		}
@@ -98,9 +99,6 @@ exec_transcode(char *transcoder, char *source_path, int offset, int end_offset, 
 
 	/* Invoke processs */
 	pid = popenvp(args[0], args, pipehandle);
-	if (pid < 0){
-		perror("exec_transcode popen2vp()");
-	}
 
 	return pid;
 }
@@ -121,14 +119,14 @@ exec_transcode_img(char *transcoder, char *source_path, char *dest_path)
 	pid=fork();
 	if (pid < 0)
 	{
-		perror("exec_transcode_img fork()");
+		DPRINTF(E_ERROR, L_TRANSCODE, "Fork failed (%s)\n", strerror(errno));
 		return pid;
 	}
 	/* child */
 	if(pid == 0)
 	{
 		if (execvp(args[0], args) < 0) {
-			perror("exec_transcode_img execvp()");
+			DPRINTF(E_ERROR, L_TRANSCODE, "Exec failed (%s)\n", strerror(errno));
 			exit(1);
 		}
 	}
@@ -185,7 +183,7 @@ needs_transcode_audio(const char* path, enum client_types client)
 	{
 		char err[128];
 		av_strerror(ret, err, sizeof(err));
-		DPRINTF(E_WARN, L_METADATA, "Opening %s failed! [%s]\n", path, err);
+		DPRINTF(E_ERROR, L_TRANSCODE, "Opening %s failed! [%s]\n", path, err);
 		lav_close(ctx);
 		return -1;
 	}
@@ -250,7 +248,7 @@ needs_transcode_video(const char* path, enum client_types client)
 	{
 		char err[128];
 		av_strerror(ret, err, sizeof(err));
-		DPRINTF(E_WARN, L_METADATA, "Opening %s failed! [%s]\n", path, err);
+		DPRINTF(E_ERROR, L_TRANSCODE, "Opening %s failed! [%s]\n", path, err);
 		return -1;
 	}
 	for( i=0; i<ctx->nb_streams; i++)
@@ -273,7 +271,7 @@ needs_transcode_video(const char* path, enum client_types client)
 	if ( vc == NULL )
 	{
 		/* This must not be a video file. */
-		DPRINTF(E_DEBUG, L_GENERAL, "File does not contain a video stream.\n");
+		DPRINTF(E_ERROR, L_TRANSCODE, "File does not contain a video stream.\n");
 		lav_close(ctx);
 		return 0;
 	}

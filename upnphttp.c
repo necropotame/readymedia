@@ -1294,7 +1294,7 @@ send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_o
 	pid_t ret;
 	struct pollfd fds[1];
 
-	DPRINTF(E_INFO, L_HTTP, "start transcode and send data\n");
+	DPRINTF(E_INFO, L_HTTP, "Starting transcoder\n");
 
 	pid = exec_transcode(transcoder, filename, offset, end_offset, &fds[0].fd);
 	if (pid<0)
@@ -1304,7 +1304,7 @@ send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_o
 	}
 
 	if ((buf = (char *)malloc(MAX_BUFFER_SIZE_TRANSCODE)) == NULL) {
-		DPRINTF(E_ERROR, L_HTTP, "can not malloc in send_file()\n\n");
+		DPRINTF(E_ERROR, L_HTTP, "Can not allocate memory\n");
 		return;
 	}
 
@@ -1320,13 +1320,13 @@ send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_o
 	{
 		ret = poll(fds, (nfds_t)1, timeout);
 		if (ret <= 0) {
-			DPRINTF(E_DEBUG, L_HTTP, "poll error : No data in Pipe\n");
+			DPRINTF(E_DEBUG, L_HTTP, "Poll error : No data in Pipe\n");
 			break;
 		}
 		timeout = 3*1000; /* timeout = 3sec after second time */
 		read_stream_size = read(fds[0].fd, buf, MAX_BUFFER_SIZE_TRANSCODE); // read from PIPE
 		if (read_stream_size == 0) {
-			DPRINTF(E_INFO, L_HTTP, "reached to EOF in PID:%d\n", (int)getpid());
+			DPRINTF(E_INFO, L_HTTP, "Reached to EOF in PID:%d\n", (int)getpid());
 			break; //EOF
 		}
 		if (read_stream_size < 0) {
@@ -1338,7 +1338,7 @@ send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_o
 		send_size = write(h->socket, buf, read_stream_size);
 		if ( send_size != -1 ) total_byte_send += send_size;
 		if ( (send_size != -1) && (send_size != read_stream_size) ) {
-			DPRINTF(E_INFO, L_HTTP, "client is full??\n");
+			DPRINTF(E_INFO, L_HTTP, "Client is full??\n");
 			read_stream_size -= send_size;
 			usleep(100000); /* wait 100mS */
 			send_size = write(h->socket, buf+send_size, read_stream_size);
@@ -1346,7 +1346,7 @@ send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_o
 		}
 		if ( send_size == -1 )
 		{
-			DPRINTF(E_DEBUG, L_HTTP, "sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
+			DPRINTF(E_DEBUG, L_HTTP, "Sendfile error :: error no. %d [%s]\n", errno, strerror(errno));
 			if( errno != EAGAIN )
 				break;
 		}
@@ -1364,16 +1364,16 @@ send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_o
 		usleep(200000); /* 200mS */
 		ret = waitpid(pid, &pid_status, WNOHANG | WUNTRACED | WCONTINUED);
 		if (ret == -1) {
-			DPRINTF(E_INFO, L_HTTP, "kill PID(%d) : %s\n", (int)pid, strerror(errno));
+			DPRINTF(E_INFO, L_HTTP, "Kill PID(%d) : %s\n", (int)pid, strerror(errno));
 			break;
 		}
 		if ((WIFEXITED(pid_status) || WIFSIGNALED(pid_status)) && (ret != 0)) {
-			DPRINTF(E_INFO, L_HTTP, "process PID(%d) was killed\n", (int)ret);
+			DPRINTF(E_INFO, L_HTTP, "Process PID(%d) was killed\n", (int)ret);
 			break;
 		}
 		kill(pid, SIGKILL);
 	}
-	DPRINTF(E_INFO, L_HTTP, "total bytes : read=%lld, send=%lld\n", total_byte_read, total_byte_send);
+	DPRINTF(E_INFO, L_HTTP, "Total bytes : read=%lld, send=%lld\n", total_byte_read, total_byte_send);
 }
 
 void
@@ -2221,8 +2221,7 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 	              last_file.transcode ? 0x1 : 0x0, /* 1 = transcoded, 0 = native */
 	              dlna_flags, 0);
 
-	DPRINTF(E_DEBUG, L_HTTP, "!!!RESPONSE:\n%s\n", str.data);
-	DPRINTF(E_WARN, L_HTTP, "Prepared to send data, transcode: %d!\n", last_file.transcode);
+	/*DPRINTF(E_DEBUG, L_HTTP, "RESPONSE:\n%s\n", str.data);*/
 	if( send_data(h, str.data, str.off, MSG_MORE) == 0 )
 	{
  		if( h->req_command != EHead ) {
