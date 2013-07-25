@@ -1973,23 +1973,28 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			if ( *mime != 'i' )
 			{
 				transcode_pid = exec_transcode(last_file.transcoder, last_file.path, 0, last_file.duration > 0 ? last_file.duration : 1000, &transcode_handle);
+				if (transcode_pid < 0)
+				{
+					DPRINTF(E_ERROR, L_HTTP, "Cannot execute transcoder %s\n", last_file.transcoder);
+					Send500(h);
+					return;
+				}
 			}
 			else
 			{
 				char tmp[L_tmpnam];
 				tmpnam(tmp);
 				transcode_pid = exec_transcode_img(last_file.transcoder, last_file.path, tmp);
-				/* wait for the transcode to finish */
-				waitpid(transcode_pid, NULL, 0);
+				if (transcode_pid < 0)
+				{
+					DPRINTF(E_ERROR, L_HTTP, "Cannot execute transcoder %s\n", last_file.transcoder);
+					Send500(h);
+					return;
+				}
 				strcpy(last_file.path, tmp);
 				transcode_tempfile = last_file.path;
 				transcode_handle = open(last_file.path, O_RDONLY);
 				last_file.transcode = 0;
-			}
-			if (transcode_pid < 0)
-			{
-				DPRINTF(E_ERROR, L_HTTP, "Cannot execute transcoder %s\n", last_file.transcoder);
-				return;
 			}
 
 			DPRINTF(E_DEBUG, L_HTTP, "Obtaining metadata\n");
@@ -2001,7 +2006,8 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 				dlna_metadata = get_dlna_metadata_video(transcode_handle);
 			else
 			{
-				DPRINTF(E_ERROR, L_HTTP, "trascoder %s is not a valid transcoder. This should never happen.\n", last_file.transcoder);
+				DPRINTF(E_ERROR, L_HTTP, "Mime type is not image/audio/video. This should never happen.\n");
+				Send500(h);
 				return;
 			}
 			

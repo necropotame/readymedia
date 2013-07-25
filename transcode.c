@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <string.h>
 
@@ -84,6 +85,7 @@ pid_t
 exec_transcode(char *transcoder, char *source_path, int offset, int end_offset, int *pipehandle)
 {
 	pid_t pid;
+	int retval;
 	char position[12], duration[12];
 	static struct sigaction sa;
 	char * args[5];
@@ -100,6 +102,10 @@ exec_transcode(char *transcoder, char *source_path, int offset, int end_offset, 
 	/* Invoke processs */
 	pid = popenvp(args[0], args, pipehandle);
 
+	retval = waitpid(pid, NULL, WNOHANG);
+	if( retval != pid )
+		return -1;
+
 	return pid;
 }
 
@@ -107,6 +113,7 @@ pid_t
 exec_transcode_img(char *transcoder, char *source_path, char *dest_path)
 {
 	pid_t pid;
+	int status, retval;
 	static struct sigaction sa;
 	char * args[4];
 
@@ -130,6 +137,10 @@ exec_transcode_img(char *transcoder, char *source_path, char *dest_path)
 			exit(1);
 		}
 	}
+
+	retval = waitpid(pid, &status, 0);
+	if( retval != pid || WIFEXITED(status) == 0 || WEXITSTATUS(status) != 0 )
+		return -1;
 
 	return pid;
 }
