@@ -1304,7 +1304,7 @@ send_file_transcode(char* transcoder, struct upnphttp * h, int offset, int end_o
 	}
 
 	if ((buf = (char *)malloc(MAX_BUFFER_SIZE_TRANSCODE)) == NULL) {
-		DPRINTF(E_ERROR, L_HTTP, "Can not allocate memory\n");
+		DPRINTF(E_ERROR, L_HTTP, "Cannot allocate memory\n");
 		return;
 	}
 
