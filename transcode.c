@@ -67,7 +67,7 @@ popenvp(const char* file, char * const argv[], int *pipehandle)
 
 		if (execvp(file, argv) < 0) {
 			DPRINTF(E_ERROR, L_TRANSCODE, "Exec failed (%s)\n", strerror(errno));
-			close(fildes[READ]);
+			close(fildes[WRITE]);
 			exit(1);
 		}
 	}
