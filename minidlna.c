@@ -161,7 +161,7 @@ static void
 sigchld(int sig)
 {
 	if (!scanning)
-		signal(SIGCHLD, SIG_DFL);
+		signal(SIGCHLD, SIG_IGN);
 	waitpid(-1, NULL, WNOHANG);
 }
 

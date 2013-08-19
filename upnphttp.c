@@ -1973,9 +1973,8 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			if ( *mime != 'i' )
 			{
 				transcode_pid = exec_transcode(last_file.transcoder, last_file.path, 0, last_file.duration > 0 ? last_file.duration : 1000, &transcode_handle);
-				if (transcode_pid < 0)
+				if( transcode_pid < 0 )
 				{
-					DPRINTF(E_ERROR, L_HTTP, "Cannot execute transcoder %s\n", last_file.transcoder);
 					Send500(h);
 					return;
 				}
@@ -1984,25 +1983,31 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			{
 				char tmp[L_tmpnam];
 				tmpnam(tmp);
+				last_file.transcode = 0;
 				transcode_pid = exec_transcode_img(last_file.transcoder, last_file.path, tmp);
-				if (transcode_pid < 0)
+				if( transcode_pid < 0 )
 				{
-					DPRINTF(E_ERROR, L_HTTP, "Cannot execute transcoder %s\n", last_file.transcoder);
+					Send500(h);
+					return;
+				}
+				waitpid(transcode_pid, NULL, 0);
+				/* try to open the resulting file. If that's not possible the transcoding probably failed */
+				transcode_handle = open(tmp, O_RDONLY);
+				if( transcode_handle < 0 ) {
+					DPRINTF(E_ERROR, L_HTTP, "Cannot open transcoded file %s, possibly a problem with transcoder\n", last_file.path);
 					Send500(h);
 					return;
 				}
 				strcpy(last_file.path, tmp);
 				transcode_tempfile = last_file.path;
-				transcode_handle = open(last_file.path, O_RDONLY);
-				last_file.transcode = 0;
 			}
 
 			DPRINTF(E_DEBUG, L_HTTP, "Obtaining metadata\n");
-			if ( *mime == 'i' )
+			if( *mime == 'i' )
 				dlna_metadata = get_dlna_metadata_image(transcode_handle);
-			else if ( *mime == 'a' )
+			else if( *mime == 'a' )
 				dlna_metadata = get_dlna_metadata_audio(transcode_handle);
-			else if ( *mime == 'v' )
+			else if( *mime == 'v' )
 				dlna_metadata = get_dlna_metadata_video(transcode_handle);
 			else
 			{
@@ -2012,13 +2017,17 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			}
 			
 			close(transcode_handle); /* causes ffmpeg transcoder to exit, TODO: check if this is true for other transcoders, too */
-			if ( dlna_metadata.mime != NULL )
-			{
-				mime = dlna_metadata.mime;
+			if( dlna_metadata.mime == NULL && dlna_metadata.dlna_pn == NULL ) {
+				DPRINTF(E_ERROR, L_HTTP, "Cannot obtain metadata.\n");
+				Send500(h);
+				return;
 			}
-			if ( dlna_metadata.dlna_pn != NULL )
+			else
 			{
-				dlnapn = dlna_metadata.dlna_pn;
+				if( dlna_metadata.mime != NULL )
+					mime = dlna_metadata.mime;
+				if( dlna_metadata.dlna_pn != NULL )
+					dlnapn = dlna_metadata.dlna_pn;
 			}
 			kill(transcode_pid, SIGKILL);
 		}
