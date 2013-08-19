@@ -5,5 +5,5 @@ STARTPOSITION=$2
 DURATION=$3
 
 #ffmpeg -ss $STARTPOSITION -t $DURATION -i "$SOURCE" -loglevel quiet -acodec pcm_s16le -f s16le -ar 44100 pipe:1
-ffmpeg -ss $STARTPOSITION -t $DURATION -i "$SOURCE" -loglevel quiet -acodec libmp3lame -f mp3 -ar 44100 -ab 224 pipe:1
+ffmpeg -ss $STARTPOSITION -t $DURATION -i "$SOURCE" -loglevel quiet -acodec libmp3lame -f mp3 -ar 44100 -ab 224k pipe:1
 
