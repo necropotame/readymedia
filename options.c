@@ -193,7 +193,7 @@ freeoptions(void)
 	struct media_dir_s *media_path, *last_path;
 	struct album_art_name_s *art_names, *last_name;
 	struct transcode_info_s *last_entry;
-	struct transcode_list_format_s *tmp, *last_tmp, *cleaned_lists[3];
+	struct transcode_list_format_s *tmp, *last_tmp, *cleaned_lists[4];
 	
 	media_path = media_dirs;
 	while (media_path)
@@ -226,12 +226,13 @@ freeoptions(void)
 
 			cleaned_lists[0] = client_types[i].transcode_info->audio_codecs;
 			cleaned_lists[1] = client_types[i].transcode_info->video_codecs;
-			cleaned_lists[2] = client_types[i].transcode_info->image_formats;
-			for ( j = 0; j < 3; j++ )
+			cleaned_lists[2] = client_types[i].transcode_info->video_containers;
+			cleaned_lists[3] = client_types[i].transcode_info->image_formats;
+			for ( j = 0; j < 4; j++ )
 			{
-				if (cleaned_lists[0])
+				if (cleaned_lists[j])
 				{
-					tmp = cleaned_lists[0];
+					tmp = cleaned_lists[j];
 					while ( tmp )
 					{
 						free(tmp->value);
