@@ -187,7 +187,6 @@ needs_transcode_audio(const char* path, enum client_types client)
 		char err[128];
 		av_strerror(ret, err, sizeof(err));
 		DPRINTF(E_ERROR, L_TRANSCODE, "Opening %s failed! [%s]\n", path, err);
-		lav_close(ctx);
 		return -1;
 	}
 	for( i=0; i<ctx->nb_streams; i++)
