@@ -48,15 +48,6 @@
 #include "sql.h"
 #include "log.h"
 
-#if LIBAVCODEC_VERSION_MAJOR < 53
-#define AVMEDIA_TYPE_AUDIO CODEC_TYPE_AUDIO
-#define AVMEDIA_TYPE_VIDEO CODEC_TYPE_VIDEO
-#endif
-
-#if LIBAVUTIL_VERSION_INT < ((50<<16)+(13<<8)+0)
-#define av_strerror(x, y, z) snprintf(y, z, "%d", x)
-#endif
-
 #define FLAG_TITLE	0x00000001
 #define FLAG_ARTIST	0x00000002
 #define FLAG_ALBUM	0x00000004

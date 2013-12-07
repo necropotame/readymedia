@@ -30,17 +30,6 @@
 #include "log.h"
 #include "metadata.h"
 
-#ifndef FF_PROFILE_H264_BASELINE
-#define FF_PROFILE_H264_BASELINE 66
-#endif
-#ifndef FF_PROFILE_H264_MAIN
-#define FF_PROFILE_H264_MAIN 77
-#endif
-#ifndef FF_PROFILE_H264_HIGH
-#define FF_PROFILE_H264_HIGH 100
-#endif
-#define FF_PROFILE_SKIP -100
-
 /* Audio profile flags */
 enum audio_profiles {
 	PROFILE_AUDIO_UNKNOWN,
@@ -603,6 +592,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 				switch( vc->profile )
 				{
 					case FF_PROFILE_H264_BASELINE:
+					case FF_PROFILE_H264_CONSTRAINED_BASELINE:
 						off += sprintf(m.dlna_pn+off, "BL_");
 						if( vc->width  <= 352 &&
 						    vc->height <= 288 &&
@@ -625,6 +615,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 					case FF_PROFILE_H264_MAIN:
 						off += sprintf(m.dlna_pn+off, "MP_");
 						if( vc->profile != FF_PROFILE_H264_BASELINE &&
+						    vc->profile != FF_PROFILE_H264_CONSTRAINED_BASELINE &&
 						    vc->profile != FF_PROFILE_H264_MAIN )
 						{
 							DPRINTF(E_DEBUG, L_METADATA, "Unknown AVC profile %d; assuming MP. [%s]\n",
@@ -728,6 +719,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 
 				switch( vc->profile ) {
 				case FF_PROFILE_H264_BASELINE:
+				case FF_PROFILE_H264_CONSTRAINED_BASELINE:
 					if( vc->width  <= 352 &&
 					    vc->height <= 288 )
 					{
