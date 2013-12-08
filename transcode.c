@@ -90,8 +90,8 @@ exec_transcode(char *transcoder, char *source_path, int offset, int end_offset, 
 	static struct sigaction sa;
 	char * args[5];
 
-	sprintf(position, "%d.%d", offset/1000, offset%1000);
-	sprintf(duration, "%d.%d", (end_offset - offset + 1)/1000,  (end_offset - offset + 1)%1000);
+	sprintf(position, "%d.%03d", offset/1000, offset%1000);
+	sprintf(duration, "%d.%03d", (end_offset - offset + 1)/1000,  (end_offset - offset + 1)%1000);
 
 	args[0] = transcoder;
 	args[1] = source_path;
