@@ -76,4 +76,4 @@ the delegate to extract only the embedded preview instead of doing
 full processing of the RAW image. To do that, change the dng:decode
 delegate in the ImageMagick's delegates.xml to following:
 
-    <delegate decode="dng:decode" command="&quot;ufraw-batch&quot; --silent --create-id=also --embedded-image &quot;--output=%u.jpg&quot; &quot;%i&quot;"/>
+    <delegate decode="dng:decode" command="&quot;ufraw-batch&quot; --silent --create-id=also --embedded-image --out-type=png &quot;--output=%u.png&quot; &quot;%i&quot;"/>
