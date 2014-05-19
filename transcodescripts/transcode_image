@@ -1,3 +1,4 @@
 #!/bin/sh
 
+export IMAGEMAGICK_OPENCL_CACHE_DIR=/tmp
 convert $1 -resize 1920x1080 jpg:$2
