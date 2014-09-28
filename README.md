@@ -44,6 +44,7 @@ in the branch __transcode__. To clone the repository, use the following command:
 
 The compilation is the standard autotools based compilation:
 
+    ./autogen.sh
     ./configure
     make
     make install
