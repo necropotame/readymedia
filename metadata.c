@@ -99,7 +99,7 @@ check_for_captions(const char *path, int64_t detailID)
 	}
 }
 
-void
+static void
 parse_nfo(const char *path, metadata_t *m)
 {
 	FILE *nfo;
@@ -596,6 +596,7 @@ GetVideoMetadata(const char *path, char *name)
 	int audio_stream = -1, video_stream = -1;
 	char fourcc[4];
 	int64_t album_art = 0;
+	char nfo[MAXPATHLEN], *ext;
 	struct song_metadata video;
 	metadata_t m;
 	uint32_t free_flags = 0xFFFFFFFF;
@@ -746,6 +747,16 @@ GetVideoMetadata(const char *path, char *name)
 
 	struct dlna_meta_s dlna_metadata = get_dlna_metadata_video_ctx(ctx, audio_stream, video_stream);
 
+	strcpy(nfo, path);
+	ext = strrchr(nfo, '.');
+	if( ext )
+	{
+		strcpy(ext+1, "nfo");
+		if( access(nfo, F_OK) == 0 )
+		{
+			parse_nfo(nfo, &m);
+		}
+	}
 
 	if( !m.date )
 	{

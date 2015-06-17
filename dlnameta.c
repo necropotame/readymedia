@@ -19,12 +19,14 @@
 
 #include "config.h"
 
-#include <wand/MagickWand.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <wand/MagickWand.h>
 
 #include "libav.h"
 
 #include "upnpglobalvars.h"
+#include "upnpreplyparse.h"
 #include "dlnameta.h"
 #include "utils.h"
 #include "log.h"
@@ -44,6 +46,44 @@ enum audio_profiles {
 	PROFILE_AUDIO_AAC_MULT5,
 	PROFILE_AUDIO_AMR
 };
+
+/* the mime part of the parse_nfo from metadata.c */
+static void
+parse_nfo(const char *path, struct dlna_meta_s *m)
+{
+	FILE *nfo;
+	char buf[65536];
+	struct NameValueParserData xml;
+	struct stat file;
+	size_t nread;
+	char *val, *val2;
+
+	if( stat(path, &file) != 0 ||
+	    file.st_size > 65536 )
+	{
+		DPRINTF(E_INFO, L_METADATA, "Not parsing very large .nfo file %s\n", path);
+		return;
+	}
+	DPRINTF(E_DEBUG, L_METADATA, "Parsing .nfo file: %s\n", path);
+	nfo = fopen(path, "r");
+	if( !nfo )
+		return;
+	nread = fread(&buf, 1, sizeof(buf), nfo);
+	
+	ParseNameValue(buf, nread, &xml, 0);
+
+	val = GetValueFromNameValueList(&xml, "mime");
+	if( val )
+	{
+		free(m->mime);
+		char *esc_tag = unescape_tag(val, 1);
+		m->mime = escape_tag(esc_tag, 1);
+		free(esc_tag);
+	}
+
+	ClearNameValueList(&xml);
+	fclose(nfo);
+}
 
 /* This function shamelessly copied from libdlna */
 #define MPEG_TS_SYNC_CODE 0x47
