@@ -36,7 +36,6 @@
 enum upnpconfigoptions {
 	UPNP_INVALID = 0,
 	UPNPIFNAME = 1,			/* ext_ifname */
-	UPNPLISTENING_IP,		/* listening_ip */
 	UPNPPORT,			/* port */
 	UPNPPRESENTATIONURL,		/* presentation_url */
 	UPNPNOTIFY_INTERVAL,		/* notify_interval */
@@ -56,6 +55,9 @@ enum upnpconfigoptions {
 	ENABLE_DLNA_STRICT,		/* strictly adhere to DLNA specs */
 	ROOT_CONTAINER,			/* root ObjectID (instead of "0") */
 	USER_ACCOUNT,			/* user account to run as */
+	FORCE_SORT_CRITERIA,		/* force sorting by a given sort criteria */
+	MAX_CONNECTIONS,		/* maximum number of simultaneous connections */
+	MERGE_MEDIA_DIRS,		/* don't add an extra directory level when there are multiple media dirs */
 	TRANSCODE_AUDIO_CODECS,		/* audio codecs that needs to be transcoded */
 	TRANSCODE_AUDIOTRANSCODER,	/* application/script that is used to transcode audio */
 	TRANSCODE_VIDEO_CONTAINERS,	/* video containers that needs to be transcoded */

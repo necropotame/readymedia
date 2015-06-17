@@ -123,7 +123,7 @@ seedRandomByte(uint32_t seed)
 	return sqlite3Prng.s[t];
 }
 
-void
+static void
 seedRandomness(int n, void *pbuf, uint32_t seed)
 {
 	unsigned char *zbuf = pbuf;
@@ -153,9 +153,9 @@ is_tivo_file(const char *path)
 
 	/* read file header */
 	fd = open(path, O_RDONLY);
-	if( !fd )
+	if( fd < 0 )
 		return 0;
-	if( read(fd, buf, 5) < 0 )
+	if( read(fd, buf, 5) < 5 )
 		buf[0] = 'X';
 	close(fd);
 

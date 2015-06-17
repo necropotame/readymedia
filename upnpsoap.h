@@ -33,9 +33,6 @@
 #define PV_NAMESPACE \
 	" xmlns:pv=\"http://www.pv.com/pvns/\""
 
-#define FLAG_FREE_OBJECT_ID     0x40000000
-#define FLAG_ROOT_CONTAINER     0x80000000
-
 struct Response
 {
 	struct string_s *str;
@@ -52,12 +49,6 @@ struct Response
  * this method executes the requested Soap Action */
 void
 ExecuteSoapAction(struct upnphttp *, const char *, int);
-
-/* SoapError():
- * sends a correct SOAP error with an UPNPError code and 
- * description */
-void
-SoapError(struct upnphttp * h, int errCode, const char * errDesc);
 
 #endif
 

@@ -193,11 +193,11 @@ get_dlna_metadata_audio(int fd)
 
 	switch (ac->codec_id)
 	{
-		case CODEC_ID_MP3:
+		case AV_CODEC_ID_MP3:
 			xasprintf(&m.mime, "audio/mpeg");
 			xasprintf(&m.dlna_pn, "MP3");
 			break;
-		case CODEC_ID_AAC:
+		case AV_CODEC_ID_AAC:
 			if ( strcmp(ctx->iformat->name, "3gp") == 0 )
 				xasprintf(&m.mime, "audio/3gp");
 			else
@@ -237,35 +237,35 @@ get_dlna_metadata_audio(int fd)
 				}
 			}
 			break;
-		case CODEC_ID_WMAV1:
-		case CODEC_ID_WMAV2:
+		case AV_CODEC_ID_WMAV1:
+		case AV_CODEC_ID_WMAV2:
 			xasprintf(&m.mime, "audio/x-ms-wma");
 			if( ac->rc_max_rate < 193000 )
 				xasprintf(&m.dlna_pn, "WMABASE");
 			else if( ac->rc_max_rate < 385000 )
 				xasprintf(&m.dlna_pn, "WMAFULL");
 			break;
-			break;
-		case CODEC_ID_WMAPRO:
+		case AV_CODEC_ID_WMAPRO:
 			xasprintf(&m.mime, "audio/x-ms-wma");
 			xasprintf(&m.dlna_pn, "WMAPRO");
 			break;
-		case CODEC_ID_WMALOSSLESS:
+		case AV_CODEC_ID_WMALOSSLESS:
 			xasprintf(&m.mime, "audio/x-ms-wma");
 			xasprintf(&m.dlna_pn, "WMALSL%s",
 				ac->channels > 2 ? "_MULT5" : "");
 			break;
-		case CODEC_ID_FLAC:
+		case AV_CODEC_ID_FLAC:
 			xasprintf(&m.mime, "audio/x-flac");
 			break;
-		case CODEC_ID_VORBIS:
+		case AV_CODEC_ID_VORBIS:
 			xasprintf(&m.mime, "audio/ogg");
 			break;
-		case CODEC_ID_PCM_S16LE:
+		case AV_CODEC_ID_PCM_S16LE:
 			/* there are many other PCM codecs, but only this one has mime audio/L16 */
 			xasprintf(&m.mime, "audio/L16;rate=%d;channels=%d", ac->sample_rate, ac->channels);
 			xasprintf(&m.dlna_pn, "LPCM");
 			break;
+		/* TODO: AV_CODEC_ID_MP2, AV_CODEC_ID_AMR_NB  */
 		default:
 			/* handle wav */
 			if ( strcmp(ctx->iformat->name, "wav" ) == 0)
@@ -357,10 +357,10 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 		aac_object_type_t aac_type = AAC_INVALID;
 		switch( ac->codec_id )
 		{
-			case CODEC_ID_MP3:
+			case AV_CODEC_ID_MP3:
 				audio_profile = PROFILE_AUDIO_MP3;
 				break;
-			case CODEC_ID_AAC:
+			case AV_CODEC_ID_AAC:
 				if( !ac->extradata_size ||
 				    !ac->extradata )
 				{
@@ -401,12 +401,12 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 						break;
 				}
 				break;
-			case CODEC_ID_AC3:
-			case CODEC_ID_DTS:
+			case AV_CODEC_ID_AC3:
+			case AV_CODEC_ID_DTS:
 				audio_profile = PROFILE_AUDIO_AC3;
 				break;
-			case CODEC_ID_WMAV1:
-			case CODEC_ID_WMAV2:
+			case AV_CODEC_ID_WMAV1:
+			case AV_CODEC_ID_WMAV2:
 				/* WMA Baseline: stereo, up to 48 KHz, up to 192,999 bps */
 				if ( ac->bit_rate <= 193000 )
 					audio_profile = PROFILE_AUDIO_WMA_BASE;
@@ -414,20 +414,18 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 				else if ( ac->bit_rate <= 385000 )
 					audio_profile = PROFILE_AUDIO_WMA_FULL;
 				break;
-			#if LIBAVCODEC_VERSION_INT > ((51<<16)+(50<<8)+1)
-			case CODEC_ID_WMAPRO:
+			case AV_CODEC_ID_WMAPRO:
 				audio_profile = PROFILE_AUDIO_WMA_PRO;
 				break;
-			#endif
-			case CODEC_ID_MP2:
+			case AV_CODEC_ID_MP2:
 				audio_profile = PROFILE_AUDIO_MP2;
 				break;
-			case CODEC_ID_AMR_NB:
+			case AV_CODEC_ID_AMR_NB:
 				audio_profile = PROFILE_AUDIO_AMR;
 				break;
 			default:
-				if( (ac->codec_id >= CODEC_ID_PCM_S16LE) &&
-				    (ac->codec_id < CODEC_ID_ADPCM_IMA_QT) )
+				if( (ac->codec_id >= AV_CODEC_ID_PCM_S16LE) &&
+				    (ac->codec_id < AV_CODEC_ID_ADPCM_IMA_QT) )
 					audio_profile = PROFILE_AUDIO_PCM;
 				else
 					DPRINTF(E_DEBUG, L_METADATA, "Unhandled audio codec [0x%X]\n", ac->codec_id);
@@ -455,7 +453,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 
 	switch( vc->codec_id )
 	{
-		case CODEC_ID_MPEG1VIDEO:
+		case AV_CODEC_ID_MPEG1VIDEO:
 			if( strcmp(ctx->iformat->name, "mpeg") == 0 )
 			{
 				if( (vc->width  == 352) &&
@@ -466,7 +464,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 				xasprintf(&m.mime, "video/mpeg");
 			}
 			break;
-		case CODEC_ID_MPEG2VIDEO:
+		case AV_CODEC_ID_MPEG2VIDEO:
 			m.dlna_pn = malloc(64);
 			off = sprintf(m.dlna_pn, "MPEG_");
 			if( strcmp(ctx->iformat->name, "mpegts") == 0 )
@@ -542,7 +540,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 				m.dlna_pn = NULL;
 			}
 			break;
-		case CODEC_ID_H264:
+		case AV_CODEC_ID_H264:
 			m.dlna_pn = malloc(128);
 			off = sprintf(m.dlna_pn, "AVC_");
 
@@ -560,11 +558,8 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 					          vc->height * vc->sample_aspect_ratio.den,
 					          1024*1024);
 				}
-				if (ctx->streams[video_stream]->r_frame_rate.den)
-					fps = ctx->streams[video_stream]->r_frame_rate.num / ctx->streams[video_stream]->r_frame_rate.den;
-				else
-					fps = 0;
-				interlaced = vc->time_base.den ? (ctx->streams[video_stream]->r_frame_rate.num / vc->time_base.den) : 0;
+				fps = lav_get_fps(ctx->streams[video_stream]);
+				interlaced = lav_get_interlaced(vc, ctx->streams[video_stream]);
 				if( ((((vc->width == 1920 || vc->width == 1440) && vc->height == 1080) ||
 				      (vc->width == 720 && vc->height == 480)) && fps == 59 && interlaced) ||
 				    ((vc->width == 1280 && vc->height == 720) && fps == 59 && !interlaced) )
@@ -853,7 +848,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 			}
 			DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is h.264\n", video_stream, basepath);
 			break;
-		case CODEC_ID_MPEG4:
+		case AV_CODEC_ID_MPEG4:
 			/*fourcc[0] = vc->codec_tag     & 0xff;
 			fourcc[1] = vc->codec_tag>>8  & 0xff;
 			fourcc[2] = vc->codec_tag>>16 & 0xff;
@@ -916,7 +911,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 				}
 			}
 			break;
-		case CODEC_ID_WMV3:
+		case AV_CODEC_ID_WMV3:
 			/* I'm not 100% sure this is correct, but it works on everything I could get my hands on */
 			if( vc->extradata_size > 0 )
 			{
@@ -925,7 +920,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 				if( !((vc->extradata[0] >> 6) & 1) )
 					vc->profile = 0;
 			}
-		case CODEC_ID_VC1:
+		case AV_CODEC_ID_VC1:
 			if( strcmp(ctx->iformat->name, "asf") != 0 )
 			{
 				DPRINTF(E_DEBUG, L_METADATA, "Skipping DLNA parsing for non-ASF VC1 file %s\n", path);
@@ -1024,7 +1019,7 @@ get_dlna_metadata_video_ctx(struct AVFormatContext *ctx, int audio_stream, int v
 				}
 			}
 			break;
-		case CODEC_ID_MSMPEG4V3:
+		case AV_CODEC_ID_MSMPEG4V3:
 			xasprintf(&m.mime, "video/x-msvideo");
 		default:
 			DPRINTF(E_DEBUG, L_METADATA, "Stream %d of %s is type %d\n",

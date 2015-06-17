@@ -62,6 +62,9 @@ static const struct {
 	{ ENABLE_DLNA_STRICT, "strict_dlna" },
 	{ ROOT_CONTAINER, "root_container" },
 	{ USER_ACCOUNT, "user" },
+	{ FORCE_SORT_CRITERIA, "force_sort_criteria" },
+	{ MAX_CONNECTIONS, "max_connections" },
+	{ MERGE_MEDIA_DIRS, "merge_media_dirs" },
 	{ TRANSCODE_AUDIO_CODECS, "transcode_audio_codecs"},
 	{ TRANSCODE_AUDIOTRANSCODER, "transcode_audio_transcoder"},
 	{ TRANSCODE_VIDEO_CONTAINERS, "transcode_video_containers"},
@@ -96,12 +99,6 @@ readoptionsfile(const char * fname)
 	if(!(hfile = fopen(fname, "r")))
 		return -1;
 
-	if(ary_options != NULL)
-	{
-		free(ary_options);
-		num_options = 0;
-	}
-
 	while(fgets(buffer, sizeof(buffer), hfile))
 	{
 		linenum++;
@@ -116,7 +113,7 @@ readoptionsfile(const char * fname)
 				t--;
 			}
 		}
-       
+
 		/* skip leading whitespaces */
 		name = buffer;
 		while(isspace(*name))
@@ -158,8 +155,11 @@ readoptionsfile(const char * fname)
 
 		if(id == UPNP_INVALID)
 		{
-			fprintf(stderr, "parsing error file %s line %d : %s=%s\n",
-			        fname, linenum, name, value);
+			if (strcmp(name, "include") == 0)
+				readoptionsfile(value);
+			else
+				fprintf(stderr, "parsing error file %s line %d : %s=%s\n",
+				        fname, linenum, name, value);
 		}
 		else
 		{

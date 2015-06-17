@@ -1,5 +1,5 @@
 /* MiniDLNA media server
- * Copyright (C) 2008-2012  Justin Maggard
+ * Copyright (C) 2008-2009  Justin Maggard
  * Copyright (C) 2012  Lukas Jirkovsky
  *
  * This file is part of MiniDLNA.
@@ -57,58 +57,46 @@
 #define FLAG_DATE	0x00000040
 #define FLAG_DURATION	0x00000200
 #define FLAG_RESOLUTION	0x00000400
-#define FLAG_BITRATE	0x00000800
-#define FLAG_FREQUENCY	0x00001000
-#define FLAG_BPS	0x00002000
-#define FLAG_CHANNELS	0x00004000
-#define FLAG_ROTATION	0x00008000
-
-#if LIBAVFORMAT_VERSION_INT >= ((52<<16)+(31<<8)+0)
-# if LIBAVUTIL_VERSION_INT < ((51<<16)+(5<<8)+0) && !defined(FF_API_OLD_METADATA2)
-#define AV_DICT_IGNORE_SUFFIX AV_METADATA_IGNORE_SUFFIX
-#define av_dict_get av_metadata_get
-typedef AVMetadataTag AVDictionaryEntry;
-# endif
-#endif
 
 void
 check_for_captions(const char *path, int64_t detailID)
 {
-	char *file = malloc(MAXPATHLEN);
-	char *id = NULL;
+	char file[MAXPATHLEN];
+	char *p;
+	int ret;
 
-	sprintf(file, "%s", path);
-	strip_ext(file);
+	strncpyt(file, path, sizeof(file));
+	p = strip_ext(file);
+	if (!p)
+		p = strrchr(file, '\0');
 
 	/* If we weren't given a detail ID, look for one. */
-	if( !detailID )
+	if (!detailID)
 	{
-		id = sql_get_text_field(db, "SELECT ID from DETAILS where (PATH > '%q.' and PATH <= '%q.z')"
+		detailID = sql_get_int64_field(db, "SELECT ID from DETAILS where (PATH > '%q.' and PATH <= '%q.z')"
 		                            " and MIME glob 'video/*' limit 1", file, file);
-		if( id )
-		{
-			//DPRINTF(E_MAXDEBUG, L_METADATA, "New file %s looks like a caption file.\n", path);
-			detailID = strtoll(id, NULL, 10);
-		}
-		else
+		if (detailID <= 0)
 		{
 			//DPRINTF(E_MAXDEBUG, L_METADATA, "No file found for caption %s.\n", path);
-			goto no_source_video;
+			return;
 		}
 	}
 
-	strcat(file, ".srt");
-	if( access(file, R_OK) == 0 )
+	strcpy(p, ".srt");
+	ret = access(file, R_OK);
+	if (ret != 0)
+	{
+		strcpy(p, ".smi");
+		ret = access(file, R_OK);
+	}
+
+	if (ret == 0)
 	{
 		sql_exec(db, "INSERT into CAPTIONS"
 		             " (ID, PATH) "
 		             "VALUES"
 		             " (%lld, %Q)", detailID, file);
 	}
-no_source_video:
-	if( id )
-		sqlite3_free(id);
-	free(file);
 }
 
 void
@@ -142,26 +130,39 @@ parse_nfo(const char *path, metadata_t *m)
 	val = GetValueFromNameValueList(&xml, "title");
 	if( val )
 	{
+		char *esc_tag, *title;
 		val2 = GetValueFromNameValueList(&xml, "episodetitle");
 		if( val2 )
-			xasprintf(&m->title, "%s - %s", val, val2);
+			xasprintf(&title, "%s - %s", val, val2);
 		else
-			m->title = strdup(val);
+			title = strdup(val);
+		esc_tag = unescape_tag(title, 1);
+		m->title = escape_tag(esc_tag, 1);
+		free(esc_tag);
+		free(title);
 	}
 
 	val = GetValueFromNameValueList(&xml, "plot");
-	if( val )
-		m->comment = strdup(val);
+	if( val ) {
+		char *esc_tag = unescape_tag(val, 1);
+		m->comment = escape_tag(esc_tag, 1);
+		free(esc_tag);
+	}
 
 	val = GetValueFromNameValueList(&xml, "capturedate");
-	if( val )
-		m->date = strdup(val);
+	if( val ) {
+		char *esc_tag = unescape_tag(val, 1);
+		m->date = escape_tag(esc_tag, 1);
+		free(esc_tag);
+	}
 
 	val = GetValueFromNameValueList(&xml, "genre");
 	if( val )
 	{
 		free(m->genre);
-		m->genre = strdup(val);
+		char *esc_tag = unescape_tag(val, 1);
+		m->genre = escape_tag(esc_tag, 1);
+		free(esc_tag);
 	}
 
 	ClearNameValueList(&xml);
@@ -189,16 +190,6 @@ free_metadata(metadata_t *m, uint32_t flags)
 		free(m->duration);
 	if( flags & FLAG_RESOLUTION )
 		free(m->resolution);
-	if( flags & FLAG_BITRATE )
-		free(m->bitrate);
-	if( flags & FLAG_FREQUENCY )
-		free(m->frequency);
-	if( flags & FLAG_BPS )
-		free(m->bps);
-	if( flags & FLAG_CHANNELS )
-		free(m->channels);
-	if( flags & FLAG_ROTATION )
-		free(m->rotation);
 }
 
 int64_t
@@ -278,7 +269,7 @@ GetAudioMetadata(const char *path, char *name)
 	}
 	else
 	{
-		DPRINTF(E_WARN, L_GENERAL, "Unhandled file extension on %s\n", path);
+		DPRINTF(E_WARN, L_METADATA, "Unhandled file extension on %s\n", path);
 		return 0;
 	}
 
@@ -292,7 +283,7 @@ GetAudioMetadata(const char *path, char *name)
 
 	if( readtags((char *)path, &song, &file, lang, type) != 0 )
 	{
-		DPRINTF(E_WARN, L_GENERAL, "Cannot extract tags from %s!\n", path);
+		DPRINTF(E_WARN, L_METADATA, "Cannot extract tags from %s!\n", path);
         	freetags(&song);
 		free_metadata(&m, free_flags);
 		return 0;
@@ -318,7 +309,7 @@ GetAudioMetadata(const char *path, char *name)
 	{
 		m.title = name;
 	}
-	for( i=ROLE_START; i<N_ROLE; i++ )
+	for( i = ROLE_START; i < N_ROLE; i++ )
 	{
 		if( song.contributor[i] && *song.contributor[i] )
 		{
@@ -337,12 +328,17 @@ GetAudioMetadata(const char *path, char *name)
 			break;
 		}
 	}
-	/* If there is a band associated with the album, use it for virtual containers. */
-	if( (i != ROLE_BAND) && (i != ROLE_ALBUMARTIST) )
+	/* If there is a album artist or band associated with the album,
+	   use it for virtual containers. */
+	if( i < ROLE_ALBUMARTIST )
 	{
-	        if( song.contributor[ROLE_BAND] && *song.contributor[ROLE_BAND] )
+		for( i = ROLE_ALBUMARTIST; i <= ROLE_BAND; i++ )
 		{
-			i = ROLE_BAND;
+			if( song.contributor[i] && *song.contributor[i] )
+				break;
+		}
+	        if( i <= ROLE_BAND )
+		{
 			m.artist = trim(song.contributor[i]);
 			if( strlen(m.artist) > 48 )
 			{
@@ -401,13 +397,13 @@ GetAudioMetadata(const char *path, char *name)
 	                   " (PATH, SIZE, TIMESTAMP, DURATION, CHANNELS, BITRATE, SAMPLERATE, DATE,"
 	                   "  TITLE, CREATOR, ARTIST, ALBUM, GENRE, COMMENT, DISC, TRACK, DLNA_PN, MIME, ALBUM_ART) "
 	                   "VALUES"
-	                   " (%Q, %lld, %ld, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
-	                   path, (long long)file.st_size, file.st_mtime, m.duration, song.channels, song.bitrate, song.samplerate, m.date,
-	                   m.title, m.creator, m.artist, m.album, m.genre, m.comment, song.disc, song.track,
-	                   dlna_metadata.dlna_pn, dlna_metadata.mime, album_art);
+	                   " (%Q, %lld, %lld, '%s', %d, %d, %d, %Q, %Q, %Q, %Q, %Q, %Q, %Q, %d, %d, %Q, '%s', %lld);",
+	                   path, (long long)file.st_size, (long long)file.st_mtime, m.duration, song.channels, song.bitrate,
+	                   song.samplerate, m.date, m.title, m.creator, m.artist, m.album, m.genre, m.comment, song.disc,
+	                   song.track, dlna_metadata.dlna_pn, dlna_metadata.mime, album_art);
 	if( ret != SQLITE_OK )
 	{
-		fprintf(stderr, "Error inserting details for '%s'!\n", path);
+		DPRINTF(E_ERROR, L_METADATA, "Error inserting details for '%s'!\n", path);
 		ret = 0;
 	}
 	else
@@ -497,24 +493,21 @@ GetImageMetadata(const char *path, char *name)
 	e = exif_content_get_entry(ed->ifd[EXIF_IFD_0], EXIF_TAG_ORIENTATION);
 	if( e )
 	{
-		int rotate;
 		switch( exif_get_short(e->data, exif_data_get_byte_order(ed)) )
 		{
 		case 3:
-			rotate = 180;
+			m.rotation = 180;
 			break;
 		case 6:
-			rotate = 90;
+			m.rotation = 90;
 			break;
 		case 8:
-			rotate = 270;
+			m.rotation = 270;
 			break;
 		default:
-			rotate = 0;
+			m.rotation = 0;
 			break;
 		}
-		if( rotate )
-			xasprintf(&m.rotation, "%d", rotate);
 	}
 
 	if( ed->size )
@@ -522,7 +515,7 @@ GetImageMetadata(const char *path, char *name)
 		/* We might need to verify that the thumbnail is 160x160 or smaller */
 		if( ed->size > 12000 )
 		{
-			imsrc = image_new_from_jpeg(NULL, 0, (char *)ed->data, ed->size, 1, ROTATE_NONE);
+			imsrc = image_new_from_jpeg(NULL, 0, ed->data, ed->size, 1, ROTATE_NONE);
 			if( imsrc )
 			{
  				if( (imsrc->width <= 160) && (imsrc->height <= 160) )
@@ -574,12 +567,12 @@ no_exifdata:
 	                   " (PATH, TITLE, SIZE, TIMESTAMP, DATE, RESOLUTION,"
 	                    " ROTATION, THUMBNAIL, CREATOR, DLNA_PN, MIME) "
 	                   "VALUES"
-	                   " (%Q, '%q', %lld, %ld, %Q, %Q, %Q, %d, %Q, %Q, %Q);",
-	                   path, name, (long long)file.st_size, file.st_mtime, m.date, m.resolution,
-	                   m.rotation, thumb, m.creator, dlna_metadata.dlna_pn, dlna_metadata.mime);
+	                   " (%Q, '%q', %lld, %lld, %Q, %Q, %u, %d, %Q, %Q, %Q);",
+	                   path, name, (long long)file.st_size, (long long)file.st_mtime, m.date,
+	                   m.resolution, m.rotation, thumb, m.creator, dlna_metadata.dlna_pn, dlna_metadata.mime);
 	if( ret != SQLITE_OK )
 	{
-		fprintf(stderr, "Error inserting details for '%s'!\n", path);
+		DPRINTF(E_ERROR, L_METADATA, "Error inserting details for '%s'!\n", path);
 		ret = 0;
 	}
 	else
@@ -638,6 +631,7 @@ GetVideoMetadata(const char *path, char *name)
 			continue;
 		}
 		else if( video_stream == -1 &&
+		         !lav_is_thumbnail_stream(ctx->streams[i], &m.thumb_data, &m.thumb_size) &&
 			 ctx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO )
 		{
 			video_stream = i;
@@ -659,20 +653,15 @@ GetVideoMetadata(const char *path, char *name)
 
 	if( ac )
 	{
-		xasprintf(&m.frequency, "%u", ac->sample_rate);
-		#if LIBAVCODEC_VERSION_INT < (52<<16)
-		xasprintf(&m.bps, "%u", ac->bits_per_sample);
-		#else
-		xasprintf(&m.bps, "%u", ac->bits_per_coded_sample);
-		#endif
-		xasprintf(&m.channels, "%u", ac->channels);
+		m.frequency = ac->sample_rate;
+		m.channels = ac->channels;
 	}
 
 	int duration, hours, min, sec, ms;
 	DPRINTF(E_DEBUG, L_METADATA, "Container: '%s' [%s]\n", ctx->iformat->name, basepath);
 	xasprintf(&m.resolution, "%dx%d", vc->width, vc->height);
 	if( ctx->bit_rate > 8 )
-		xasprintf(&m.bitrate, "%u", ctx->bit_rate / 8);
+		m.bitrate = ctx->bit_rate / 8;
 	if( ctx->duration > 0 ) {
 		duration = (int)(ctx->duration / AV_TIME_BASE);
 		hours = (int)(duration / 3600);
@@ -684,7 +673,7 @@ GetVideoMetadata(const char *path, char *name)
 
 	if( strcmp(ctx->iformat->name, "avi") == 0 )
 	{
-		if( vc->codec_id == CODEC_ID_MPEG4 )
+		if( vc->codec_id == AV_CODEC_ID_MPEG4 )
 		{
 				fourcc[0] = vc->codec_tag     & 0xff;
 				fourcc[1] = vc->codec_tag>>8  & 0xff;
@@ -722,6 +711,11 @@ GetVideoMetadata(const char *path, char *name)
 				m.creator = m.artist;
 				free_flags &= ~FLAG_CREATOR;
 			}
+			if (!m.thumb_data)
+			{
+				m.thumb_data = video.image;
+				m.thumb_size = video.image_size;
+			}
 		}
 	}
 	#ifndef NETGEAR
@@ -752,7 +746,6 @@ GetVideoMetadata(const char *path, char *name)
 
 	struct dlna_meta_s dlna_metadata = get_dlna_metadata_video_ctx(ctx, audio_stream, video_stream);
 
-	lav_close(ctx);
 
 	if( !m.date )
 	{
@@ -764,21 +757,22 @@ GetVideoMetadata(const char *path, char *name)
 	if( !m.title )
 		m.title = strdup(name);
 
-	album_art = find_album_art(path, video.image, video.image_size);
+	album_art = find_album_art(path, m.thumb_data, m.thumb_size);
 	freetags(&video);
+	lav_close(ctx);
 
 	ret = sql_exec(db, "INSERT into DETAILS"
 	                   " (PATH, SIZE, TIMESTAMP, DURATION, DATE, CHANNELS, BITRATE, SAMPLERATE, RESOLUTION,"
 	                   "  TITLE, CREATOR, ARTIST, GENRE, COMMENT, DLNA_PN, MIME, ALBUM_ART) "
 	                   "VALUES"
-	                   " (%Q, %lld, %ld, %Q, %Q, %Q, %Q, %Q, %Q, '%q', %Q, %Q, %Q, %Q, %Q, '%q', %lld);",
-	                   path, (long long)file.st_size, file.st_mtime, m.duration,
+	                   " (%Q, %lld, %lld, %Q, %Q, %u, %u, %u, %Q, '%q', %Q, %Q, %Q, %Q, %Q, '%q', %lld);",
+	                   path, (long long)file.st_size, (long long)file.st_mtime, m.duration,
 	                   m.date, m.channels, m.bitrate, m.frequency, m.resolution,
 	                   m.title, m.creator, m.artist, m.genre, m.comment, dlna_metadata.dlna_pn,
 	                   dlna_metadata.mime, album_art);
 	if( ret != SQLITE_OK )
 	{
-		fprintf(stderr, "Error inserting details for '%s'!\n", path);
+		DPRINTF(E_ERROR, L_METADATA, "Error inserting details for '%s'!\n", path);
 		ret = 0;
 	}
 	else
