@@ -2180,10 +2180,14 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		tmode = "Background";
 	else
 #endif
-	if( strncmp(last_file.mime, "image", 5) == 0 )
+	if( strncmp(last_file.mime, "image", 5) == 0 ) {
 		tmode = "Interactive";
-	else
+		dlna_flags |= DLNA_FLAG_TM_I;
+	}
+	else {
 		tmode = "Streaming";
+		dlna_flags |= DLNA_FLAG_TM_S;
+	}
 
 	start_dlna_header(&str, (h->reqflags & FLAG_RANGE ? 206 : 200), tmode, last_file.mime);
 
@@ -2255,20 +2259,6 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 		h->req_RangeEnd = size - 1;
 		total = size;
 		strcatf(&str, "Content-Length: %jd\r\n", (intmax_t)total);
-	}
-
-	switch( *last_file.mime )
-	{
-		case 'i':
-			strcatf(&str, "transferMode.dlna.org: Interactive\r\n");
-			dlna_flags |= DLNA_FLAG_TM_I;
-			break;
-		case 'a':
-		case 'v':
-		default:
-			strcatf(&str, "transferMode.dlna.org: Streaming\r\n"); // TODO - fix transfer mode
-			dlna_flags |= DLNA_FLAG_TM_S;
-			break;
 	}
 
 	if( h->reqflags & FLAG_CAPTION )
