@@ -90,7 +90,7 @@
 #include "dlnameta.h"
 #include "sendfile.h"
 
-#define MAX_BUFFER_SIZE_TRANSCODE 1048576 // 1MB
+#define MAX_BUFFER_SIZE_TRANSCODE 1048576 /* 1MB */
 #define MAX_BUFFER_SIZE 2147483647
 #define MIN_BUFFER_SIZE 65536
 
@@ -1992,8 +1992,8 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			last_file.duration = (3600*h + 60*m + s)*1000 + ss;
 		}
 
-		// non-zero value means the file needs to be transcoded
-		if ( *mime == 'i' )
+		/* non-zero value means the file needs to be transcoded */
+		if ( *mime == 'i' ) /* image */
 		{
 			last_file.transcode = needs_transcode_image(last_file.path, client_types[last_file.client].type);
 			if (client_types[last_file.client].transcode_info && client_types[last_file.client].transcode_info->image_transcoder)
@@ -2001,7 +2001,7 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			else
 				last_file.transcoder = client_types[0].transcode_info->image_transcoder;
 		}
-		else if ( *mime == 'a' )
+		else if ( *mime == 'a' ) /* audio */
 		{
 			last_file.transcode = needs_transcode_audio(last_file.path, client_types[last_file.client].type);
 			if (client_types[last_file.client].transcode_info && client_types[last_file.client].transcode_info->audio_transcoder)
@@ -2009,7 +2009,7 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 			else
 				last_file.transcoder = client_types[0].transcode_info->audio_transcoder;
 		}
-		else if ( *mime == 'v' )
+		else if ( *mime == 'v' ) /* video */
 		{
 			last_file.transcode = needs_transcode_video(last_file.path, client_types[last_file.client].type);
 			if (client_types[last_file.client].transcode_info && client_types[last_file.client].transcode_info->video_transcoder)
@@ -2025,7 +2025,6 @@ SendResp_dlnafile(struct upnphttp *h, char *object)
 
 		if (last_file.transcode && last_file.transcoder)
 		{
-			// DPRINTF(E_WARN, L_GENERAL, "\nFile %s NEEDS TO BE TRANSCODED!\n", last_file.path);
 			DPRINTF(E_DEBUG, L_HTTP, "Executing transcode\n");
 			if ( *mime != 'i' )
 			{
